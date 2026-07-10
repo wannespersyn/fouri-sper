@@ -11,7 +11,7 @@ import type { DagOverzicht, MaaltijdToewijzing, ToewijzingGroep } from "@/lib/me
 export async function getMenuplannerOverzicht(kampId: string, dagen: string[]): Promise<DagOverzicht[]> {
   const supabase = await createClient();
 
-  const [planningRes, feestdagenRes, groepenRes] = await Promise.all([
+  const [planningRes, feestdagenRes, groepenRes, aanwezigheidRes] = await Promise.all([
     supabase
       .from("v_prep_planning")
       .select("toewijzing_id, dag, moment, recept_id, recept_naam, eters, ontbrekende_dieten, status_ok")
@@ -23,9 +23,25 @@ export async function getMenuplannerOverzicht(kampId: string, dagen: string[]): 
       .from("maaltijd_toewijzing_groep")
       .select("toewijzing_id, groep:groep_id(id, naam, kleur), toewijzing:toewijzing_id!inner(kamp_id)")
       .eq("toewijzing.kamp_id", kampId),
+    supabase
+      .from("v_aanwezigheid")
+      .select("dag, moment, groep_id")
+      .eq("kamp_id", kampId)
+      .eq("groep_afwezig", true),
   ]);
 
   const feestdagen = new Set((feestdagenRes.data ?? []).map((f) => f.datum));
+
+  // Groepen zonder rij hier zijn nooit expliciet afwezig gezet voor dit
+  // moment (geen dagje-af, geen activiteit) — die tellen dus als aanwezig,
+  // gebruikt om de groepenkiezer in de maaltijd-modal voor te selecteren.
+  const afwezigePerDagMoment = new Map<string, Set<string>>();
+  for (const row of aanwezigheidRes.data ?? []) {
+    const key = `${row.dag}|${row.moment}`;
+    const set = afwezigePerDagMoment.get(key) ?? new Set<string>();
+    set.add(row.groep_id);
+    afwezigePerDagMoment.set(key, set);
+  }
 
   const groepenPerToewijzing = new Map<string, ToewijzingGroep[]>();
   for (const row of groepenRes.data ?? []) {
@@ -62,6 +78,7 @@ export async function getMenuplannerOverzicht(kampId: string, dagen: string[]): 
         status: slotStatus(toewijzingen),
         eters: toewijzingen.reduce((som, t) => som + t.eters, 0),
         toewijzingen,
+        afwezigeGroepIds: [...(afwezigePerDagMoment.get(`${dag}|${m.value}`) ?? [])],
       };
     });
     return { dag, gesloten, slots };

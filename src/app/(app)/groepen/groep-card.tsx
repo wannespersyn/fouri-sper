@@ -51,7 +51,13 @@ export function GroepCard({
   return (
     <div className="rounded-[15px] border border-card-border bg-card p-4.5">
       {bewerken ? (
-        <form action={updateGroep} className="flex flex-wrap items-end gap-2.5">
+        <form
+          action={async (formData) => {
+            await updateGroep(formData);
+            setBewerken(false);
+          }}
+          className="flex flex-wrap items-end gap-2.5"
+        >
           <input type="hidden" name="id" value={groep.id} />
           <div className="flex flex-col gap-1">
             <label htmlFor={`groep-kleur-${groep.id}`} className="text-xs font-bold">
@@ -109,7 +115,6 @@ export function GroepCard({
           </div>
           <button
             type="submit"
-            onClick={() => setBewerken(false)}
             className="h-9 rounded-lg bg-primary px-3 py-1.5 text-sm font-bold text-white hover:bg-primary-2"
           >
             Opslaan

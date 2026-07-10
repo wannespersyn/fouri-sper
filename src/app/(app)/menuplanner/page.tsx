@@ -20,7 +20,7 @@ export default async function MenuplannerPage() {
   return (
     <>
       <PageHeader title="Menuplanner" subtitle="Weekmenu voor het kamp" />
-      <div className="flex-1 overflow-auto p-5.5">
+      <div className="flex-1 overflow-auto p-3.5 sm:p-5.5">
         <div className="mx-auto max-w-295">
           {groepenOpties.length === 0 ? (
             <p className="text-sm text-[#6f7d72]">

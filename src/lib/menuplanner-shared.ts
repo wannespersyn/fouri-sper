@@ -71,6 +71,9 @@ export type MaaltijdSlot = {
   status: SlotStatus;
   eters: number;
   toewijzingen: MaaltijdToewijzing[];
+  // groep_id's die voor dit dag/moment afwezig staan (dagje af of activiteit)
+  // — gebruikt om de groepenkiezer in de maaltijd-modal voor te selecteren.
+  afwezigeGroepIds: string[];
 };
 
 export type DagOverzicht = {

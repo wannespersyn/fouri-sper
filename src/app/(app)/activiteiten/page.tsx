@@ -17,7 +17,7 @@ export default async function ActiviteitenPage() {
   return (
     <>
       <PageHeader title="Activiteiten" subtitle="Uitstappen en wie niet mee-eet" />
-      <div className="flex-1 overflow-auto p-5.5">
+      <div className="flex-1 overflow-auto p-3.5 sm:p-5.5">
         <div className="mx-auto flex max-w-295 flex-col gap-3.5">
           <NieuweActiviteitForm groepen={groepen} kampStart={kamp.start_datum} kampEind={kamp.eind_datum} />
 

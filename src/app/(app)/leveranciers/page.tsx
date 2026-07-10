@@ -19,7 +19,7 @@ export default async function LeveranciersPage() {
   return (
     <>
       <PageHeader title="Leveranciers" subtitle="Wie levert welke producten" />
-      <div className="flex-1 overflow-auto p-5.5">
+      <div className="flex-1 overflow-auto p-3.5 sm:p-5.5">
         <div className="mx-auto flex max-w-295 flex-col gap-3.5">
           <NieuweLeverancierForm />
 

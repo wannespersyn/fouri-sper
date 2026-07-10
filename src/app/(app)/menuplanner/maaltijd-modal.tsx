@@ -14,6 +14,7 @@ export function MaaltijdModal({
   moment,
   momentLabel,
   toewijzingen,
+  afwezigeGroepIds,
   groepenOpties,
   receptenOpties,
   onClose,
@@ -22,12 +23,20 @@ export function MaaltijdModal({
   moment: MaaltijdMoment;
   momentLabel: string;
   toewijzingen: MaaltijdToewijzing[];
+  afwezigeGroepIds: string[];
   groepenOpties: GroepOptie[];
   receptenOpties: ReceptOptie[];
   onClose: () => void;
 }>) {
+  // Standaard alle groepen die niet afwezig staan voor dit dag/moment —
+  // scheelt aanvinken bij het gebruikelijke geval (iedereen eet mee).
+  // Blijft manueel bij te sturen voor uitzonderingen die niet in Groepen/
+  // Activiteiten zitten, bv. aankomstdag waarbij iedereen pas 's middags
+  // toekomt en dus het ontbijt overslaat.
+  const standaardGroepIds = groepenOpties.filter((g) => !afwezigeGroepIds.includes(g.id)).map((g) => g.id);
+
   const [receptId, setReceptId] = useState("");
-  const [groepIds, setGroepIds] = useState<string[]>([]);
+  const [groepIds, setGroepIds] = useState<string[]>(standaardGroepIds);
   const [fout, setFout] = useState<string | null>(null);
 
   function toggleGroep(id: string) {
@@ -97,7 +106,7 @@ export function MaaltijdModal({
               setFout(null);
               await assignRecept(formData);
               setReceptId("");
-              setGroepIds([]);
+              setGroepIds(standaardGroepIds);
             }}
             className="mt-2 flex flex-col gap-2.5"
           >

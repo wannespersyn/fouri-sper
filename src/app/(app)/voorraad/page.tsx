@@ -12,7 +12,7 @@ export default async function VoorraadPage() {
   return (
     <>
       <PageHeader title="Voorraad" subtitle="Wat is er al in huis" />
-      <div className="flex-1 overflow-auto p-5.5">
+      <div className="flex-1 overflow-auto p-3.5 sm:p-5.5">
         <div className="mx-auto max-w-295">
           {voorraad.length === 0 ? (
             <p className="text-sm text-[#6f7d72]">

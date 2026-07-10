@@ -26,3 +26,7 @@ export const NAV_ITEMS: NavItem[] = [
   { href: "/voorraad", label: "Voorraad", kort: "Voorr.", Icon: VoorraadIcon },
   { href: "/boodschappen", label: "Boodschappen", kort: "Bood.", Icon: BoodschappenIcon },
 ];
+
+// Op mobiel krijgen alleen deze twee een eigen tab in de bottom nav — de rest
+// zit achter "Meer" zodat de balk niet overvol raakt op smalle schermen.
+export const BOTTOM_NAV_PRIMARY_HREFS = ["/menuplanner", "/boodschappen"];

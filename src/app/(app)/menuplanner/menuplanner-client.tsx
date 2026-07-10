@@ -200,6 +200,7 @@ export function MenuplannerClient({
           moment={modalMoment}
           momentLabel={MAALTIJD_MOMENT_LABEL[modalMoment]}
           toewijzingen={geselecteerdeDag.slots.find((s) => s.moment === modalMoment)?.toewijzingen ?? []}
+          afwezigeGroepIds={geselecteerdeDag.slots.find((s) => s.moment === modalMoment)?.afwezigeGroepIds ?? []}
           groepenOpties={groepenOpties}
           receptenOpties={receptenOpties}
           onClose={() => setModalMoment(null)}
