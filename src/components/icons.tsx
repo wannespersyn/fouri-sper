@@ -81,6 +81,54 @@ export function BoodschappenIcon(props: SVGProps<SVGSVGElement>) {
   );
 }
 
+export function StreepjesIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <Svg {...props}>
+      <path d="M6 8h9v10a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2z" />
+      <path d="M15 10h2a2 2 0 0 1 2 2v2a2 2 0 0 1-2 2h-2" />
+      <path d="M6 8l1-4h7l1 4" />
+    </Svg>
+  );
+}
+
+export function BierIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <Svg {...props}>
+      <path d="M17 11h1a3 3 0 0 1 0 6h-1" />
+      <path d="M9 12v6" />
+      <path d="M13 12v6" />
+      <path d="M14 7.5c-1 0-1.44.5-3 .5s-2-.5-3-.5-1.72.5-2.5.5a2.5 2.5 0 0 1 0-5c.78 0 1.57.5 2.5.5S9.44 2 11 2s2 1.5 3 1.5 1.72-.5 2.5-.5a2.5 2.5 0 0 1 0 5c-.78 0-1.5-.5-2.5-.5Z" />
+      <path d="M5 8v12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V8" />
+    </Svg>
+  );
+}
+
+export function SterkeIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <Svg {...props}>
+      <path d="M12 12 4.207 4.207A.707.707 0 0 1 4.707 3h14.586a.707.707 0 0 1 .5 1.207z" />
+      <path d="M12 12v10" />
+      <path d="M7 22h10" />
+    </Svg>
+  );
+}
+
+export function CheckIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <Svg {...props}>
+      <path d="M4 12.5l5 5L20 6.5" />
+    </Svg>
+  );
+}
+
+export function StarIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <Svg {...props}>
+      <path d="M12 3.5l2.6 5.4 5.9.8-4.3 4.2 1 5.9L12 17l-5.2 2.8 1-5.9-4.3-4.2 5.9-.8z" />
+    </Svg>
+  );
+}
+
 export function MeerIcon(props: SVGProps<SVGSVGElement>) {
   return (
     <Svg {...props}>
@@ -88,6 +136,22 @@ export function MeerIcon(props: SVGProps<SVGSVGElement>) {
       <rect x={13} y={4} width={7} height={7} rx={1.5} />
       <rect x={4} y={13} width={7} height={7} rx={1.5} />
       <rect x={13} y={13} width={7} height={7} rx={1.5} />
+    </Svg>
+  );
+}
+
+export function PlusIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <Svg {...props}>
+      <path d="M12 5v14M5 12h14" />
+    </Svg>
+  );
+}
+
+export function MinusIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <Svg {...props}>
+      <path d="M5 12h14" />
     </Svg>
   );
 }

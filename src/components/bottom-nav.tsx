@@ -52,7 +52,7 @@ export function BottomNav() {
         </div>
       </div>
 
-      <nav className="fixed inset-x-0 bottom-0 z-40 grid grid-cols-3 gap-1 bg-sidebar px-2 pt-1.5 pb-[calc(6px+env(safe-area-inset-bottom))]">
+      <nav className="fixed inset-x-0 bottom-0 z-40 grid grid-cols-4 gap-1 bg-sidebar px-2 pt-1.5 pb-[calc(6px+env(safe-area-inset-bottom))]">
         {primaireItems.map((item) => {
           const active = pathname.startsWith(item.href);
           return (

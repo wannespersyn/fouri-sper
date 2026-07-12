@@ -7,6 +7,7 @@ import {
   ActiviteitenIcon,
   VoorraadIcon,
   BoodschappenIcon,
+  StreepjesIcon,
 } from "@/components/icons";
 
 export type NavItem = {
@@ -25,8 +26,11 @@ export const NAV_ITEMS: NavItem[] = [
   { href: "/activiteiten", label: "Activiteiten", kort: "Activ.", Icon: ActiviteitenIcon },
   { href: "/voorraad", label: "Voorraad", kort: "Voorr.", Icon: VoorraadIcon },
   { href: "/boodschappen", label: "Boodschappen", kort: "Bood.", Icon: BoodschappenIcon },
+  { href: "/streepjes", label: "Streepjes", kort: "Streep.", Icon: StreepjesIcon },
 ];
 
-// Op mobiel krijgen alleen deze twee een eigen tab in de bottom nav — de rest
+// Op mobiel krijgen alleen deze drie een eigen tab in de bottom nav — de rest
 // zit achter "Meer" zodat de balk niet overvol raakt op smalle schermen.
-export const BOTTOM_NAV_PRIMARY_HREFS = ["/menuplanner", "/boodschappen"];
+// Streepjes staat erbij omdat het tijdens het kamp bijna uitsluitend op de
+// telefoon gebruikt wordt, in tegenstelling tot de andere modules.
+export const BOTTOM_NAV_PRIMARY_HREFS = ["/menuplanner", "/boodschappen", "/streepjes"];
