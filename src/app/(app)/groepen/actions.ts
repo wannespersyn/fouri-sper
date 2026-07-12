@@ -87,10 +87,14 @@ export async function updatePersoon(formData: FormData) {
   const id = formString(formData, "id");
   const naam = formString(formData, "naam").trim();
   const dieettypeIds = formStrings(formData, "dieettype_id");
+  const allergieOpmerking = formString(formData, "allergie_opmerking").trim();
   if (!id || !naam) return;
 
   const supabase = await createClient();
-  await supabase.from("persoon").update({ naam }).eq("id", id);
+  await supabase
+    .from("persoon")
+    .update({ naam, allergie_opmerking: allergieOpmerking || null })
+    .eq("id", id);
 
   // Volledige vervanging is simpeler en foutbestendiger dan diffen.
   await supabase.from("persoon_dieettype").delete().eq("persoon_id", id);

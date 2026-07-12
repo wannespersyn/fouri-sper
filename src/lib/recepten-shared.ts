@@ -91,6 +91,10 @@ export type ReceptSamenvatting = {
   ingredientenAantal: number;
   groepenIngepland: number;
   ontbrekendeDietenAantal: number;
+  // Aantal personen met een ingevulde vrije-tekst allergie_opmerking die dit
+  // recept te eten krijgen — kan niet automatisch opgelost worden zoals een
+  // dieettype-aanpassing, dus altijd manueel na te kijken.
+  allergieOpmerkingenAantal: number;
 };
 
 export type ReceptDetail = ReceptSamenvatting & {

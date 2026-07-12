@@ -7,6 +7,8 @@ export type Persoon = {
   naam: string;
   groep_id: string;
   dieettypeIds: string[];
+  // Vrije tekst voor allergieën/dieetnotities die niet in een dieettype-tag passen.
+  allergieOpmerking: string | null;
   // dag (ISO) -> expliciete override; ontbreekt = volgt de groep die dag
   afwijkingen: Map<string, boolean>;
 };
@@ -34,7 +36,7 @@ export async function getGroepenMetDetails(kampId: string): Promise<Groep[]> {
       .order("volgorde", { ascending: true }),
     supabase
       .from("persoon")
-      .select("id, naam, groep_id, persoon_dieettype(dieettype_id)")
+      .select("id, naam, groep_id, allergie_opmerking, persoon_dieettype(dieettype_id)")
       .eq("kamp_id", kampId)
       .order("naam", { ascending: true }),
     supabase
@@ -79,6 +81,7 @@ export async function getGroepenMetDetails(kampId: string): Promise<Groep[]> {
             dieettypeIds: (p.persoon_dieettype as unknown as { dieettype_id: string }[]).map(
               (pd) => pd.dieettype_id
             ),
+            allergieOpmerking: p.allergie_opmerking,
             afwijkingen,
           };
         }),

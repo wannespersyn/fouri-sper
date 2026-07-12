@@ -334,6 +334,14 @@ function PersoonRow({
             {aantalAfwijkingen} afwijkende dag{aantalAfwijkingen > 1 ? "en" : ""}
           </span>
         )}
+        {persoon.allergieOpmerking && (
+          <span
+            title={persoon.allergieOpmerking}
+            className="flex size-4.5 items-center justify-center rounded-full bg-[#f8d6c0] text-[10px] font-bold text-[#cf6f34]"
+          >
+            !
+          </span>
+        )}
         <div className="ml-auto flex items-center gap-1">
           <button
             onClick={onToggleExpand}
@@ -386,6 +394,19 @@ function PersoonRow({
                 ))}
               </div>
             </fieldset>
+            <div className="flex w-full flex-col gap-1">
+              <label htmlFor={`persoon-allergie-${persoon.id}`} className="text-xs font-bold">
+                Bijzondere allergieën / opmerkingen
+              </label>
+              <textarea
+                id={`persoon-allergie-${persoon.id}`}
+                name="allergie_opmerking"
+                defaultValue={persoon.allergieOpmerking ?? ""}
+                rows={2}
+                placeholder="bv. geen kiwi, lichte lactose-intolerantie behalve kaas…"
+                className="w-full rounded-lg border border-card-border px-2.5 py-1.5 text-sm"
+              />
+            </div>
             <button
               type="submit"
               className="rounded-lg bg-primary px-3 py-1.5 text-sm font-bold text-white hover:bg-primary-2"

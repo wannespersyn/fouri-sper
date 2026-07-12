@@ -26,7 +26,7 @@ export async function getReceptenOverzicht(kampId: string): Promise<ReceptSamenv
 
   const { data: statusRows } = await supabase
     .from("v_recept_status")
-    .select("recept_id, ingredienten_aantal, groepen_ingepland, ontbrekende_dieten_aantal")
+    .select("recept_id, ingredienten_aantal, groepen_ingepland, ontbrekende_dieten_aantal, allergie_opmerkingen_aantal")
     .in("recept_id", recepten.map((r) => r.id));
 
   const statusById = new Map((statusRows ?? []).map((s) => [s.recept_id, s]));
@@ -41,6 +41,7 @@ export async function getReceptenOverzicht(kampId: string): Promise<ReceptSamenv
       ingredientenAantal: s?.ingredienten_aantal ?? 0,
       groepenIngepland: s?.groepen_ingepland ?? 0,
       ontbrekendeDietenAantal: s?.ontbrekende_dieten_aantal ?? 0,
+      allergieOpmerkingenAantal: s?.allergie_opmerkingen_aantal ?? 0,
     };
   });
 }
@@ -119,7 +120,7 @@ export async function getReceptDetail(kampId: string, receptId: string): Promise
     getDieettypes(),
     supabase
       .from("v_recept_status")
-      .select("ingredienten_aantal, groepen_ingepland, ontbrekende_dieten_aantal")
+      .select("ingredienten_aantal, groepen_ingepland, ontbrekende_dieten_aantal, allergie_opmerkingen_aantal")
       .eq("recept_id", receptId)
       .maybeSingle(),
     supabase.from("persoon_dieettype").select("dieettype_id, persoon:persoon_id!inner(kamp_id)").eq("persoon.kamp_id", kampId),
@@ -187,6 +188,7 @@ export async function getReceptDetail(kampId: string, receptId: string): Promise
     ingredientenAantal: status?.ingredienten_aantal ?? ingredienten.length,
     groepenIngepland: status?.groepen_ingepland ?? 0,
     ontbrekendeDietenAantal: status?.ontbrekende_dieten_aantal ?? 0,
+    allergieOpmerkingenAantal: status?.allergie_opmerkingen_aantal ?? 0,
     ingredienten,
     dieetSecties,
   };

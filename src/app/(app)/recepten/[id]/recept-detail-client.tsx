@@ -191,6 +191,13 @@ export function ReceptDetailClient({
           aanpast — een simpele notitie volstaat, of je kiest meteen welk ingrediënt vervangen wordt.
         </p>
 
+        {recept.allergieOpmerkingenAantal > 0 && (
+          <div className="mt-3 rounded-lg bg-[#f8d6c0] px-3 py-2 text-[13px] font-semibold text-[#cf6f34]">
+            {recept.allergieOpmerkingenAantal} persoon{recept.allergieOpmerkingenAantal > 1 ? "en" : ""} die dit recept
+            eet met een vrije-tekst allergie-opmerking — controleer manueel, dit wordt niet automatisch opgelost.
+          </div>
+        )}
+
         <div className="mt-3 flex flex-col gap-2.5">
           {recept.dieetSecties.map((sectie) => (
             <DieetSectieCard key={sectie.dieettype_id} sectie={sectie} receptId={recept.id} ingredientOpties={ingredientOpties} />

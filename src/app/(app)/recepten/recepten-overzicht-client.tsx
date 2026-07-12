@@ -14,7 +14,7 @@ function statusLabel(status: ReceptSamenvatting["status"]) {
 }
 
 function ReceptCard({ recept }: Readonly<{ recept: ReceptSamenvatting }>) {
-  const heeftWaarschuwing = recept.ontbrekendeDietenAantal > 0;
+  const heeftWaarschuwing = recept.ontbrekendeDietenAantal > 0 || recept.allergieOpmerkingenAantal > 0;
 
   return (
     <Link href={`/recepten/${recept.id}`} className="block">
@@ -39,9 +39,16 @@ function ReceptCard({ recept }: Readonly<{ recept: ReceptSamenvatting }>) {
 
         {heeftWaarschuwing && (
           <div className="mt-3 flex flex-wrap gap-1">
-            <span className="rounded-full bg-[#f8d6c0] px-2 py-0.5 text-[10px] font-bold text-[#cf6f34]">
-              {recept.ontbrekendeDietenAantal} dieet{recept.ontbrekendeDietenAantal > 1 ? "en" : ""} nog in te vullen
-            </span>
+            {recept.ontbrekendeDietenAantal > 0 && (
+              <span className="rounded-full bg-[#f8d6c0] px-2 py-0.5 text-[10px] font-bold text-[#cf6f34]">
+                {recept.ontbrekendeDietenAantal} dieet{recept.ontbrekendeDietenAantal > 1 ? "en" : ""} nog in te vullen
+              </span>
+            )}
+            {recept.allergieOpmerkingenAantal > 0 && (
+              <span className="rounded-full bg-[#f8d6c0] px-2 py-0.5 text-[10px] font-bold text-[#cf6f34]">
+                {recept.allergieOpmerkingenAantal} opmerking{recept.allergieOpmerkingenAantal > 1 ? "en" : ""} te controleren
+              </span>
+            )}
           </div>
         )}
       </div>
