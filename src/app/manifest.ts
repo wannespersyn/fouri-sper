@@ -2,7 +2,7 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "Fouri SPER — kampplanner",
+    name: "Fouri SPER",
     short_name: "Fouri SPER",
     description: "Menuplanning, groepen, activiteiten en boodschappen voor het scoutskamp.",
     start_url: "/",

@@ -3,12 +3,22 @@ import type { StreepjePersoon, StreepjeTellingen, StreepjeType } from "@/lib/str
 
 export async function getStreepjesPersonen(kampId: string): Promise<StreepjePersoon[]> {
   const supabase = await createClient();
-  const { data } = await supabase
-    .from("streepje_persoon")
-    .select("id, naam, favoriet")
-    .eq("kamp_id", kampId)
-    .order("naam", { ascending: true });
-  return data ?? [];
+  const [{ data: personen }, { data: userData }] = await Promise.all([
+    supabase.from("streepje_persoon").select("id, naam").eq("kamp_id", kampId).order("naam", { ascending: true }),
+    supabase.auth.getUser(),
+  ]);
+
+  const gebruikerId = userData.user?.id;
+  let favorietIds = new Set<string>();
+  if (gebruikerId) {
+    const { data: favorieten } = await supabase
+      .from("streepje_persoon_favoriet")
+      .select("streepje_persoon_id")
+      .eq("gebruiker_id", gebruikerId);
+    favorietIds = new Set((favorieten ?? []).map((f) => f.streepje_persoon_id));
+  }
+
+  return (personen ?? []).map((p) => ({ ...p, favoriet: favorietIds.has(p.id) }));
 }
 
 export async function getStreepjeTypes(kampId: string): Promise<StreepjeType[]> {

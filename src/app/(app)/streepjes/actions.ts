@@ -71,7 +71,20 @@ export async function toggleStreepjePersoonFavoriet(formData: FormData) {
   if (!id) return;
 
   const supabase = await createClient();
-  await supabase.from("streepje_persoon").update({ favoriet: !huidig }).eq("id", id);
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return;
+
+  if (huidig) {
+    await supabase
+      .from("streepje_persoon_favoriet")
+      .delete()
+      .eq("streepje_persoon_id", id)
+      .eq("gebruiker_id", user.id);
+  } else {
+    await supabase.from("streepje_persoon_favoriet").insert({ streepje_persoon_id: id, gebruiker_id: user.id });
+  }
 
   revalidatePath("/streepjes");
 }
