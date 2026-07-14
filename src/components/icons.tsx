@@ -164,3 +164,13 @@ export function PencilIcon(props: SVGProps<SVGSVGElement>) {
     </Svg>
   );
 }
+
+export function LedenIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <Svg {...props}>
+      <circle cx={12} cy={8} r={3.5} />
+      <path d="M4.5 20a7.5 7.5 0 0 1 15 0" />
+      <path d="M20 8.5a3 3 0 0 1 2 5.4M4 8.5a3 3 0 0 0-2 5.4" />
+    </Svg>
+  );
+}

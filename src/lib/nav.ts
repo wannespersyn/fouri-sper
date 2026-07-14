@@ -8,6 +8,7 @@ import {
   VoorraadIcon,
   BoodschappenIcon,
   StreepjesIcon,
+  LedenIcon,
 } from "@/components/icons";
 
 export type NavItem = {
@@ -27,6 +28,7 @@ export const NAV_ITEMS: NavItem[] = [
   { href: "/voorraad", label: "Voorraad", kort: "Voorr.", Icon: VoorraadIcon },
   { href: "/boodschappen", label: "Boodschappen", kort: "Bood.", Icon: BoodschappenIcon },
   { href: "/streepjes", label: "Streepjes", kort: "Streep.", Icon: StreepjesIcon },
+  { href: "/leden", label: "Leden", kort: "Leden", Icon: LedenIcon },
 ];
 
 // Op mobiel krijgen alleen deze drie een eigen tab in de bottom nav — de rest
