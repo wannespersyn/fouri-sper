@@ -116,7 +116,6 @@ export function BoodschappenClient({
               key={b.leverancierId ?? "geen-leverancier"}
               bestelling={b}
               besteldag={geselecteerdeDag.dag}
-              dektTot={geselecteerdeDag.dektTot}
             />
           ))}
         </div>

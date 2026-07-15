@@ -3,69 +3,42 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getActiefKamp } from "@/lib/data/kamp";
-import { formString, formStrings } from "@/lib/form";
+import { formString } from "@/lib/form";
 
-// Bestelling plaatsen voor één leverancier op één besteldag: de huidige
-// live-berekende regels (netto hoeveelheid per ingrediënt) worden als
-// momentopname weggeschreven in aankoop, zodat je later nog ziet wat je
-// effectief besteld hebt — ook als voorraad of menuplanning nadien wijzigt.
-// Upsert op de (kamp_id, besteldag, leverancier_id) unique constraint, dus
-// nogmaals bestellen op dezelfde dag overschrijft gewoon de vorige regels.
-export async function plaatsBestelling(formData: FormData) {
+// Vinkt een ingrediënt van een gerecht aan/af voor een besteldag — een
+// informele checklist (bv. voor dingen die al op voorhand gehaald zijn),
+// presence-is-waar net als afwezigheid: geen rij verwijderen als "huidig" al
+// afgevinkt was, anders toevoegen.
+export async function toggleAfgevinkt(formData: FormData) {
   const kamp = await getActiefKamp();
   if (!kamp) throw new Error("Geen actief kamp.");
 
   const besteldag = formString(formData, "besteldag");
-  const dektTot = formString(formData, "dekt_tot");
-  const leverancierId = formString(formData, "leverancier_id");
-  if (!besteldag || !dektTot || !leverancierId) return;
-
-  const ingredientIds = formStrings(formData, "ingredient_id");
-  const hoeveelheden = formStrings(formData, "hoeveelheid");
+  const receptId = formString(formData, "recept_id");
+  const ingredientId = formString(formData, "ingredient_id");
+  const huidig = formString(formData, "huidig") === "true";
+  if (!besteldag || !receptId || !ingredientId) return;
 
   const supabase = await createClient();
 
-  const { data: lijst, error: lijstError } = await supabase
-    .from("boodschappenlijst")
-    .upsert(
-      {
-        kamp_id: kamp.id,
-        besteldag,
-        dekt_tot: dektTot,
-        leverancier_id: leverancierId,
-        status: "besteld",
-      },
-      { onConflict: "kamp_id,besteldag,leverancier_id" }
-    )
-    .select("id")
-    .single();
-  if (lijstError || !lijst) throw new Error(lijstError?.message ?? "Bestelling plaatsen mislukt.");
-
-  await supabase.from("aankoop").delete().eq("boodschappenlijst_id", lijst.id);
-
-  const aankopen = ingredientIds
-    .map((ingredientId, i) => ({
-      boodschappenlijst_id: lijst.id,
-      ingredient_id: ingredientId,
-      hoeveelheid: Number(hoeveelheden[i]),
-    }))
-    .filter((a) => Number.isFinite(a.hoeveelheid) && a.hoeveelheid > 0);
-
-  if (aankopen.length > 0) {
-    const { error: aankoopError } = await supabase.from("aankoop").insert(aankopen);
-    if (aankoopError) throw new Error(aankoopError.message);
+  if (huidig) {
+    const { error } = await supabase
+      .from("boodschappen_afgevinkt")
+      .delete()
+      .eq("kamp_id", kamp.id)
+      .eq("besteldag", besteldag)
+      .eq("recept_id", receptId)
+      .eq("ingredient_id", ingredientId);
+    if (error) throw new Error(error.message);
+  } else {
+    const { error } = await supabase
+      .from("boodschappen_afgevinkt")
+      .upsert(
+        { kamp_id: kamp.id, besteldag, recept_id: receptId, ingredient_id: ingredientId },
+        { onConflict: "kamp_id,besteldag,recept_id,ingredient_id" }
+      );
+    if (error) throw new Error(error.message);
   }
-
-  revalidatePath("/boodschappen");
-}
-
-export async function markeerGeleverd(formData: FormData) {
-  const id = formString(formData, "id");
-  if (!id) return;
-
-  const supabase = await createClient();
-  const { error } = await supabase.from("boodschappenlijst").update({ status: "geleverd" }).eq("id", id);
-  if (error) throw new Error(error.message);
 
   revalidatePath("/boodschappen");
 }

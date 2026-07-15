@@ -5,24 +5,27 @@
 // lib/data/boodschappen.ts, not here.
 import type { Eenheid } from "@/lib/recepten-shared";
 
-export type BoodschappenStatus = "open" | "besteld" | "geleverd";
-
-export type BoodschappenRegel = {
+export type GerechtBoodschappenRegel = {
   ingredientId: string;
   ingredientNaam: string;
   eenheid: Eenheid;
-  nettoHoeveelheid: number;
-  verpakkingsgrootte: number | null;
-  aantalVerpakkingen: number | null;
+  hoeveelheid: number;
+  afgevinkt: boolean;
+};
+
+// Wat één gerecht op deze besteldag nodig heeft van de leverancier waar de
+// kaart bij hoort.
+export type GerechtBoodschappen = {
+  receptId: string;
+  receptNaam: string;
+  regels: GerechtBoodschappenRegel[];
 };
 
 export type LeverancierBestelling = {
   leverancierId: string | null;
   leverancierNaam: string;
   leverancierKleur: string;
-  regels: BoodschappenRegel[];
-  boodschappenlijstId: string | null;
-  status: BoodschappenStatus;
+  gerechten: GerechtBoodschappen[];
 };
 
 export type BestelDag = {
@@ -31,17 +34,3 @@ export type BestelDag = {
   bestelVoor2Dagen: boolean;
   dektTot: string;
 };
-
-// Zelfde statuskleuren-logica als slotStatusClass op de Menuplanner: grijs =
-// nog niks gebeurd, oranje = in uitvoering/aandacht nodig, groen = klaar.
-export function bestelStatusLabel(status: BoodschappenStatus): string {
-  if (status === "besteld") return "Besteld";
-  if (status === "geleverd") return "Geleverd";
-  return "Nog te bestellen";
-}
-
-export function bestelStatusClass(status: BoodschappenStatus): string {
-  if (status === "besteld") return "bg-[#fbe7db] text-[#b85a24]";
-  if (status === "geleverd") return "bg-[#dcedd8] text-[#4f7a56]";
-  return "bg-[#e6e0d4] text-[#7b7260]";
-}

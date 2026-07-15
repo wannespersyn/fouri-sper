@@ -1,21 +1,21 @@
 "use client";
 
-import { plaatsBestelling, markeerGeleverd } from "@/app/(app)/boodschappen/actions";
-import { bestelStatusClass, bestelStatusLabel } from "@/lib/boodschappen-shared";
+import { toggleAfgevinkt } from "@/app/(app)/boodschappen/actions";
 import type { LeverancierBestelling } from "@/lib/boodschappen-shared";
-import { formatGetal, formatHoeveelheid } from "@/lib/recepten-shared";
+import { formatHoeveelheid } from "@/lib/recepten-shared";
+import { CheckIcon } from "@/components/icons";
 
 export function LeverancierBestellingCard({
   bestelling,
   besteldag,
-  dektTot,
 }: Readonly<{
   bestelling: LeverancierBestelling;
   besteldag: string;
-  dektTot: string;
 }>) {
   const initiaal = bestelling.leverancierNaam.trim().charAt(0).toUpperCase() || "?";
-  const kanBestellen = bestelling.leverancierId !== null;
+  const aantalProducten = new Set(
+    bestelling.gerechten.flatMap((g) => g.regels.map((r) => r.ingredientId))
+  ).size;
 
   return (
     <div className="rounded-[15px] border border-card-border bg-card p-4.5">
@@ -29,64 +29,66 @@ export function LeverancierBestellingCard({
         <div className="min-w-0">
           <div className="font-head text-[17px] font-extrabold">{bestelling.leverancierNaam}</div>
           <div className="text-xs text-[#6f7d72]">
-            {bestelling.regels.length} product{bestelling.regels.length === 1 ? "" : "en"}
+            {aantalProducten} product{aantalProducten === 1 ? "" : "en"}
           </div>
         </div>
-        <span
-          className={`ml-auto rounded-full px-2.5 py-1 text-[11px] font-extrabold ${bestelStatusClass(bestelling.status)}`}
-        >
-          {bestelStatusLabel(bestelling.status)}
-        </span>
       </div>
 
-      <div className="mt-3.5 flex flex-col gap-1.5 border-t border-[#eee3ce] pt-3">
-        {bestelling.regels.map((regel) => (
-          <div key={regel.ingredientId} className="flex items-center gap-2 text-sm">
-            <span className="min-w-0 flex-1 truncate">{regel.ingredientNaam}</span>
-            <span className="flex-none font-bold text-[#25322b]">
-              {formatHoeveelheid(regel.nettoHoeveelheid, regel.eenheid)}
-            </span>
-            {regel.aantalVerpakkingen !== null && (
-              <span className="flex-none text-xs text-[#8a8172]">
-                ({formatGetal(regel.aantalVerpakkingen)}× {formatHoeveelheid(regel.verpakkingsgrootte ?? 0, regel.eenheid)})
-              </span>
-            )}
-          </div>
-        ))}
-      </div>
-
-      {!kanBestellen ? (
-        <p className="mt-3.5 border-t border-[#eee3ce] pt-3 text-xs text-[#8a8172]">
-          Wijs deze ingrediënten toe aan een leverancier via de Leveranciers-pagina om ze te kunnen bestellen.
-        </p>
-      ) : bestelling.status === "geleverd" ? null : bestelling.status === "besteld" ? (
-        <form action={markeerGeleverd} className="mt-3.5 border-t border-[#eee3ce] pt-3">
-          <input type="hidden" name="id" value={bestelling.boodschappenlijstId ?? ""} />
-          <button
-            type="submit"
-            className="w-full rounded-lg border border-card-border bg-white py-2 text-[13px] font-bold text-primary hover:bg-[#eef4ee]"
-          >
-            Markeer als geleverd
-          </button>
-        </form>
-      ) : (
-        <form action={plaatsBestelling} className="mt-3.5 border-t border-[#eee3ce] pt-3">
-          <input type="hidden" name="besteldag" value={besteldag} />
-          <input type="hidden" name="dekt_tot" value={dektTot} />
-          <input type="hidden" name="leverancier_id" value={bestelling.leverancierId ?? ""} />
-          {bestelling.regels.map((regel) => (
-            <span key={regel.ingredientId}>
-              <input type="hidden" name="ingredient_id" value={regel.ingredientId} />
-              <input type="hidden" name="hoeveelheid" value={regel.nettoHoeveelheid} />
-            </span>
+      {bestelling.gerechten.length > 0 && (
+        <div className="mt-3.5 flex flex-col gap-3 border-t border-[#eee3ce] pt-3">
+          {bestelling.gerechten.map((gerecht) => (
+            <div key={gerecht.receptId}>
+              <div className="mb-1 text-[11px] font-extrabold uppercase tracking-wide text-[#8a8172]">
+                {gerecht.receptNaam}
+              </div>
+              <div className="flex flex-col gap-1">
+                {gerecht.regels.map((regel) => (
+                  <form
+                    key={regel.ingredientId}
+                    action={toggleAfgevinkt}
+                    className="flex items-center gap-2 text-sm"
+                  >
+                    <input type="hidden" name="besteldag" value={besteldag} />
+                    <input type="hidden" name="recept_id" value={gerecht.receptId} />
+                    <input type="hidden" name="ingredient_id" value={regel.ingredientId} />
+                    <input type="hidden" name="huidig" value={String(regel.afgevinkt)} />
+                    <button
+                      type="submit"
+                      aria-label={regel.afgevinkt ? "Afvinken ongedaan maken" : "Afvinken"}
+                      aria-pressed={regel.afgevinkt}
+                      className="flex size-5 flex-none items-center justify-center rounded-md border transition"
+                      style={
+                        regel.afgevinkt
+                          ? { borderColor: "var(--primary)", background: "var(--primary)", color: "#fff" }
+                          : { borderColor: "#d8d0bc", background: "#fff" }
+                      }
+                    >
+                      {regel.afgevinkt && <CheckIcon width={12} height={12} />}
+                    </button>
+                    <span
+                      className="min-w-0 flex-1 truncate text-left"
+                      style={regel.afgevinkt ? { color: "#a3a08f", textDecoration: "line-through" } : undefined}
+                    >
+                      {regel.ingredientNaam}
+                    </span>
+                    <span
+                      className="flex-none font-bold"
+                      style={{ color: regel.afgevinkt ? "#a3a08f" : "#25322b" }}
+                    >
+                      {formatHoeveelheid(regel.hoeveelheid, regel.eenheid)}
+                    </span>
+                  </form>
+                ))}
+              </div>
+            </div>
           ))}
-          <button
-            type="submit"
-            className="w-full rounded-lg bg-primary py-2 text-[13px] font-bold text-white hover:bg-primary-2"
-          >
-            Bestelling plaatsen
-          </button>
-        </form>
+        </div>
+      )}
+
+      {bestelling.leverancierId === null && (
+        <p className="mt-3.5 border-t border-[#eee3ce] pt-3 text-xs text-[#8a8172]">
+          Wijs deze ingrediënten toe aan een leverancier via de Leveranciers-pagina.
+        </p>
       )}
     </div>
   );
