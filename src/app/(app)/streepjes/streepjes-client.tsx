@@ -9,31 +9,16 @@ import {
 } from "@/app/(app)/streepjes/actions";
 import {
   zoekPersonen,
+  typeIcon,
   type StreepjePersoon,
   type StreepjeTellingen,
   type StreepjeType,
 } from "@/lib/streepjes-shared";
-import {
-  StarIcon,
-  BierIcon,
-  SterkeIcon,
-  CheckIcon,
-  StreepjesIcon,
-  PlusIcon,
-  MinusIcon,
-} from "@/components/icons";
+import { StarIcon, CheckIcon, PlusIcon, MinusIcon, LedenIcon } from "@/components/icons";
+import Link from "next/link";
+import Image from "next/image";
 
 const FLASH_DUUR_MS = 500;
-
-// Herkent het drankicoon aan de naam — valt terug op een generiek glas voor
-// soorten die geen "bier" of "sterke" in de naam hebben (soortenlijst is per
-// kamp instelbaar, dus dit moet ook met nieuwe/andere namen blijven werken).
-function typeIcon(naam: string) {
-  const n = naam.toLowerCase();
-  if (n.includes("bier") || n.includes("pint")) return BierIcon;
-  if (n.includes("sterk")) return SterkeIcon;
-  return StreepjesIcon;
-}
 
 export function StreepjesClient({
   personen,
@@ -79,6 +64,28 @@ export function StreepjesClient({
         className="cursor-pointer rounded-2xl border border-card-border bg-card p-3 transition active:bg-[#f6f3ea]"
       >
         <div className="flex items-center gap-2">
+          <Link
+            href={`/streepjes/${p.id}`}
+            onClick={(e) => e.stopPropagation()}
+            aria-label={`Profiel van ${p.naam}`}
+            className="flex-none"
+          >
+            {p.fotoUrl ? (
+              <Image
+                src={p.fotoUrl}
+                alt=""
+                width={32}
+                height={32}
+                className="size-8 rounded-full object-cover"
+                unoptimized
+              />
+            ) : (
+              <span className="flex size-8 items-center justify-center rounded-full bg-[#f0ede2] text-[#8a8172]">
+                <LedenIcon width={15} height={15} />
+              </span>
+            )}
+          </Link>
+
           <form action={toggleStreepjePersoonFavoriet} onClick={(e) => e.stopPropagation()}>
             <input type="hidden" name="id" value={p.id} />
             <input type="hidden" name="huidig" value={String(p.favoriet)} />

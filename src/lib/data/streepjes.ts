@@ -1,10 +1,14 @@
 import { createClient } from "@/lib/supabase/server";
-import type { StreepjePersoon, StreepjeTellingen, StreepjeType } from "@/lib/streepjes-shared";
+import type { StreepjePersoon, StreepjeRuw, StreepjeTellingen, StreepjeType } from "@/lib/streepjes-shared";
 
 export async function getStreepjesPersonen(kampId: string): Promise<StreepjePersoon[]> {
   const supabase = await createClient();
   const [{ data: personen }, { data: userData }] = await Promise.all([
-    supabase.from("streepje_persoon").select("id, naam").eq("kamp_id", kampId).order("naam", { ascending: true }),
+    supabase
+      .from("streepje_persoon")
+      .select("id, naam, bio, foto_url")
+      .eq("kamp_id", kampId)
+      .order("naam", { ascending: true }),
     supabase.auth.getUser(),
   ]);
 
@@ -18,7 +22,40 @@ export async function getStreepjesPersonen(kampId: string): Promise<StreepjePers
     favorietIds = new Set((favorieten ?? []).map((f) => f.streepje_persoon_id));
   }
 
-  return (personen ?? []).map((p) => ({ ...p, favoriet: favorietIds.has(p.id) }));
+  return (personen ?? []).map((p) => ({
+    id: p.id,
+    naam: p.naam,
+    bio: p.bio,
+    fotoUrl: p.foto_url,
+    favoriet: favorietIds.has(p.id),
+  }));
+}
+
+export async function getStreepjePersoon(kampId: string, persoonId: string): Promise<StreepjePersoon | null> {
+  const supabase = await createClient();
+  const { data: p } = await supabase
+    .from("streepje_persoon")
+    .select("id, naam, bio, foto_url")
+    .eq("kamp_id", kampId)
+    .eq("id", persoonId)
+    .maybeSingle();
+  if (!p) return null;
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  let favoriet = false;
+  if (user) {
+    const { data: fav } = await supabase
+      .from("streepje_persoon_favoriet")
+      .select("streepje_persoon_id")
+      .eq("streepje_persoon_id", persoonId)
+      .eq("gebruiker_id", user.id)
+      .maybeSingle();
+    favoriet = !!fav;
+  }
+
+  return { id: p.id, naam: p.naam, bio: p.bio, fotoUrl: p.foto_url, favoriet };
 }
 
 export async function getStreepjeTypes(kampId: string): Promise<StreepjeType[]> {
@@ -47,4 +84,16 @@ export async function getStreepjeTellingen(kampId: string): Promise<StreepjeTell
     perType[row.streepje_type_id] = (perType[row.streepje_type_id] ?? 0) + 1;
   }
   return tellingen;
+}
+
+// Zelfde schaal-argument als getStreepjeTellingen hierboven, maar met
+// created_at erbij — basis voor leaderboards en het per-dag overzicht, die
+// de streepjes moeten kunnen groeperen per streepjesdag (8u-8u).
+export async function getStreepjesRuw(kampId: string): Promise<StreepjeRuw[]> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("streepje")
+    .select("streepje_persoon_id, streepje_type_id, created_at")
+    .eq("kamp_id", kampId);
+  return data ?? [];
 }

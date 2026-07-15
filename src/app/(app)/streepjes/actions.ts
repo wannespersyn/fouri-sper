@@ -65,6 +65,38 @@ export async function addStreepjePersoon(formData: FormData) {
   revalidatePath("/streepjes");
 }
 
+// Bio en/of foto zijn allebei optioneel — leiding kan een profiel
+// stapsgewijs invullen. Bij een nieuwe foto wordt altijd naar hetzelfde pad
+// geüpload (upsert), zodat een oude foto vanzelf vervangen wordt i.p.v. dat
+// er weesbestanden achterblijven in de bucket.
+export async function updateStreepjePersoonProfiel(formData: FormData) {
+  const kamp = await getActiefKamp();
+  if (!kamp) return;
+
+  const id = formString(formData, "id");
+  if (!id) return;
+  const bio = formString(formData, "bio").trim();
+
+  const supabase = await createClient();
+  const update: { bio: string | null; foto_url?: string } = { bio: bio || null };
+
+  const foto = formData.get("foto");
+  if (foto instanceof File && foto.size > 0) {
+    const ext = foto.name.split(".").pop()?.toLowerCase() || "jpg";
+    const pad = `${id}/foto.${ext}`;
+    const { error } = await supabase.storage.from("streepje-fotos").upload(pad, foto, { upsert: true });
+    if (!error) {
+      const { data } = supabase.storage.from("streepje-fotos").getPublicUrl(pad);
+      update.foto_url = `${data.publicUrl}?v=${Date.now()}`;
+    }
+  }
+
+  await supabase.from("streepje_persoon").update(update).eq("id", id).eq("kamp_id", kamp.id);
+
+  revalidatePath("/streepjes");
+  revalidatePath(`/streepjes/${id}`);
+}
+
 export async function toggleStreepjePersoonFavoriet(formData: FormData) {
   const id = formString(formData, "id");
   const huidig = formString(formData, "huidig") === "true";
