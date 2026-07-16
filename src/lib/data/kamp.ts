@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
 import { MAAND_KORT } from "@/lib/date";
 
@@ -17,7 +18,10 @@ export function formatDatumBereik(startIso: string, eindIso: string) {
   return zelfdeJaar ? `${startLabel} – ${eindLabel}` : `${startLabel} ${startJaar} – ${eindLabel}`;
 }
 
-export async function getActiefKamp(): Promise<ActiefKamp | null> {
+// cache() dedupes this within a single request — layout.tsx and every
+// page.tsx call it independently, and without this they'd each hit
+// Supabase separately for the exact same row.
+export const getActiefKamp = cache(async (): Promise<ActiefKamp | null> => {
   const supabase = await createClient();
   const { data } = await supabase
     .from("kamp")
@@ -26,4 +30,4 @@ export async function getActiefKamp(): Promise<ActiefKamp | null> {
     .maybeSingle();
 
   return data;
-}
+});
