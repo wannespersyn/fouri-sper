@@ -2,6 +2,7 @@ import Link from "next/link";
 import { PageHeader } from "@/components/page-header";
 import { getActiefKamp } from "@/lib/data/kamp";
 import { getStreepjePersoon, getStreepjesRuw, getStreepjeTypes } from "@/lib/data/streepjes";
+import { getShussGebeurtenissen } from "@/lib/data/shuss";
 import { PersoonDetailClient } from "@/app/(app)/streepjes/[id]/persoon-detail-client";
 
 export default async function StreepjePersoonPage({ params }: Readonly<{ params: Promise<{ id: string }> }>) {
@@ -9,10 +10,11 @@ export default async function StreepjePersoonPage({ params }: Readonly<{ params:
   const kamp = await getActiefKamp();
   if (!kamp) return null; // gated by (app)/layout.tsx, shouldn't happen
 
-  const [persoon, types, ruw] = await Promise.all([
+  const [persoon, types, ruw, shussGebeurtenissen] = await Promise.all([
     getStreepjePersoon(kamp.id, id),
     getStreepjeTypes(kamp.id),
     getStreepjesRuw(kamp.id),
+    getShussGebeurtenissen(kamp.id),
   ]);
 
   if (!persoon) {
@@ -35,7 +37,7 @@ export default async function StreepjePersoonPage({ params }: Readonly<{ params:
     <>
       <PageHeader title={persoon.naam} subtitle="Profiel & overzicht" />
       <div className="flex-1 overflow-auto p-3.5 sm:p-5.5">
-        <PersoonDetailClient persoon={persoon} types={types} ruw={ruw} />
+        <PersoonDetailClient persoon={persoon} types={types} ruw={ruw} shussGebeurtenissen={shussGebeurtenissen} />
       </div>
     </>
   );

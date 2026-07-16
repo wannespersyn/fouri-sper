@@ -58,6 +58,17 @@ export function huidigeStreepjesDag(): string {
   return streepjesDag(new Date().toISOString());
 }
 
+export type StreepjeLeaderboardRegel = {
+  persoon: StreepjePersoon;
+  aantal: number;
+  // Alleen zinvol in "totaal"-modus (opts.dag ongezet) — het gemiddelde
+  // aantal streepjes op de dagen dat iemand er effectief bij was, i.p.v.
+  // gedeeld door de volledige kampduur (die zou onterecht dalen voor wie
+  // pas halverwege het kamp toekwam).
+  gemiddeldePerDag: number;
+  perType: Record<string, number>;
+};
+
 // Rangschikt personen op aantal streepjes. Zonder opties all-time en over
 // alle soorten heen; `dag` beperkt tot één streepjesdag, `typeId` tot één
 // specifiek drankje (bv. apart klassement voor Pintje vs. Sterke).
@@ -65,16 +76,37 @@ export function berekenLeaderboard(
   ruw: StreepjeRuw[],
   personen: StreepjePersoon[],
   opts?: { dag?: string; typeId?: string }
-): { persoon: StreepjePersoon; aantal: number }[] {
+): StreepjeLeaderboardRegel[] {
   const perPersoon = new Map<string, number>();
+  const dagenPerPersoon = new Map<string, Set<string>>();
+  const perTypePerPersoon = new Map<string, Record<string, number>>();
+
   for (const s of ruw) {
     if (opts?.dag !== undefined && streepjesDag(s.created_at) !== opts.dag) continue;
     if (opts?.typeId !== undefined && s.streepje_type_id !== opts.typeId) continue;
+
     perPersoon.set(s.streepje_persoon_id, (perPersoon.get(s.streepje_persoon_id) ?? 0) + 1);
+
+    const dagen = dagenPerPersoon.get(s.streepje_persoon_id) ?? new Set<string>();
+    dagen.add(streepjesDag(s.created_at));
+    dagenPerPersoon.set(s.streepje_persoon_id, dagen);
+
+    const perType = perTypePerPersoon.get(s.streepje_persoon_id) ?? {};
+    perType[s.streepje_type_id] = (perType[s.streepje_type_id] ?? 0) + 1;
+    perTypePerPersoon.set(s.streepje_persoon_id, perType);
   }
 
   return personen
-    .map((persoon) => ({ persoon, aantal: perPersoon.get(persoon.id) ?? 0 }))
+    .map((persoon) => {
+      const aantal = perPersoon.get(persoon.id) ?? 0;
+      const aantalDagen = dagenPerPersoon.get(persoon.id)?.size ?? 0;
+      return {
+        persoon,
+        aantal,
+        gemiddeldePerDag: aantalDagen > 0 ? aantal / aantalDagen : 0,
+        perType: perTypePerPersoon.get(persoon.id) ?? {},
+      };
+    })
     .filter((r) => r.aantal > 0)
     .sort((a, b) => b.aantal - a.aantal || a.persoon.naam.localeCompare(b.persoon.naam));
 }

@@ -2,7 +2,11 @@
 
 import { useState } from "react";
 import Image from "next/image";
-import { updateStreepjePersoonProfiel } from "@/app/(app)/streepjes/actions";
+import {
+  addShussGebeurtenis,
+  removeShussGebeurtenis,
+  updateStreepjePersoonProfiel,
+} from "@/app/(app)/streepjes/actions";
 import {
   berekenPersoonOverzicht,
   typeIcon,
@@ -10,21 +14,32 @@ import {
   type StreepjeRuw,
   type StreepjeType,
 } from "@/lib/streepjes-shared";
+import { berekenShussTellingen, shussWinrate, type ShussGebeurtenis, type ShussSoort } from "@/lib/shuss-shared";
 import { formatDatumLang } from "@/lib/date";
-import { LedenIcon, PencilIcon } from "@/components/icons";
+import { LedenIcon, PencilIcon, MinusIcon, PlusIcon } from "@/components/icons";
+
+const SHUSS_RIJEN: { soort: ShussSoort; label: string }[] = [
+  { soort: "gewonnen", label: "Gewonnen" },
+  { soort: "verloren", label: "Verloren" },
+  { soort: "adje", label: "Adjes geschoten" },
+];
 
 export function PersoonDetailClient({
   persoon,
   types,
   ruw,
+  shussGebeurtenissen,
 }: Readonly<{
   persoon: StreepjePersoon;
   types: StreepjeType[];
   ruw: StreepjeRuw[];
+  shussGebeurtenissen: ShussGebeurtenis[];
 }>) {
   const [bewerken, setBewerken] = useState(false);
   const overzicht = berekenPersoonOverzicht(ruw, persoon.id, types);
   const totaal = Object.values(overzicht.totaalPerType).reduce((som, aantal) => som + aantal, 0);
+  const shussTellingen = berekenShussTellingen(shussGebeurtenissen, persoon.id);
+  const winrate = shussWinrate(shussTellingen);
 
   return (
     <div className="mx-auto flex max-w-205 flex-col gap-4">
@@ -89,6 +104,52 @@ export function PersoonDetailClient({
             </button>
           </form>
         )}
+      </div>
+
+      <div className="rounded-[22px] border border-card-border bg-card p-5">
+        <div className="flex items-center justify-between">
+          <h2 className="text-sm font-extrabold uppercase tracking-wide text-[#8a8172]">Shuss</h2>
+          {winrate !== null && (
+            <span className="text-sm font-extrabold text-[#25322b]">
+              {Math.round(winrate * 100)}% winrate ({shussTellingen.gewonnen}/{shussTellingen.gewonnen + shussTellingen.verloren})
+            </span>
+          )}
+        </div>
+        <div className="mt-3 flex flex-col gap-2">
+          {SHUSS_RIJEN.map(({ soort, label }) => {
+            const aantal =
+              soort === "gewonnen" ? shussTellingen.gewonnen : soort === "verloren" ? shussTellingen.verloren : shussTellingen.adjes;
+            return (
+              <div key={soort} className="flex items-center gap-2.5">
+                <span className="min-w-0 flex-1 text-sm font-semibold text-[#4f5b52]">{label}</span>
+                <form action={removeShussGebeurtenis}>
+                  <input type="hidden" name="streepje_persoon_id" value={persoon.id} />
+                  <input type="hidden" name="soort" value={soort} />
+                  <button
+                    type="submit"
+                    disabled={aantal === 0}
+                    aria-label={`-1 ${label} voor ${persoon.naam}`}
+                    className="flex size-7 flex-none items-center justify-center rounded-full border border-card-border text-[#4f5b52] transition active:scale-90 disabled:opacity-30"
+                  >
+                    <MinusIcon width={13} height={13} />
+                  </button>
+                </form>
+                <span className="w-6 flex-none text-center text-sm font-extrabold">{aantal}</span>
+                <form action={addShussGebeurtenis}>
+                  <input type="hidden" name="streepje_persoon_id" value={persoon.id} />
+                  <input type="hidden" name="soort" value={soort} />
+                  <button
+                    type="submit"
+                    aria-label={`+1 ${label} voor ${persoon.naam}`}
+                    className="flex size-7 flex-none items-center justify-center rounded-full bg-primary text-white transition active:scale-90"
+                  >
+                    <PlusIcon width={13} height={13} />
+                  </button>
+                </form>
+              </div>
+            );
+          })}
+        </div>
       </div>
 
       <div className="rounded-[22px] border border-card-border bg-card p-5">

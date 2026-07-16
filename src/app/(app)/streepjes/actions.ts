@@ -97,6 +97,56 @@ export async function updateStreepjePersoonProfiel(formData: FormData) {
   revalidatePath(`/streepjes/${id}`);
 }
 
+export async function addShussGebeurtenis(formData: FormData) {
+  const kamp = await getActiefKamp();
+  if (!kamp) return;
+
+  const streepjePersoonId = formString(formData, "streepje_persoon_id");
+  const soort = formString(formData, "soort");
+  if (!streepjePersoonId) return;
+  if (soort !== "gewonnen" && soort !== "verloren" && soort !== "adje") return;
+
+  const supabase = await createClient();
+  await supabase.from("shuss_gebeurtenis").insert({
+    kamp_id: kamp.id,
+    streepje_persoon_id: streepjePersoonId,
+    soort,
+  });
+
+  revalidatePath(`/streepjes/${streepjePersoonId}`);
+  revalidatePath("/streepjes/leaderboard");
+}
+
+// Verwijdert de laatst toegevoegde gebeurtenis voor deze combinatie i.p.v.
+// een specifiek id — zelfde "verwijder er één" model als removeStreepje.
+export async function removeShussGebeurtenis(formData: FormData) {
+  const kamp = await getActiefKamp();
+  if (!kamp) return;
+
+  const streepjePersoonId = formString(formData, "streepje_persoon_id");
+  const soort = formString(formData, "soort");
+  if (!streepjePersoonId) return;
+  if (soort !== "gewonnen" && soort !== "verloren" && soort !== "adje") return;
+
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("shuss_gebeurtenis")
+    .select("id")
+    .eq("kamp_id", kamp.id)
+    .eq("streepje_persoon_id", streepjePersoonId)
+    .eq("soort", soort)
+    .order("created_at", { ascending: false })
+    .limit(1);
+
+  const laatste = data?.[0];
+  if (!laatste) return;
+
+  await supabase.from("shuss_gebeurtenis").delete().eq("id", laatste.id);
+
+  revalidatePath(`/streepjes/${streepjePersoonId}`);
+  revalidatePath("/streepjes/leaderboard");
+}
+
 export async function toggleStreepjePersoonFavoriet(formData: FormData) {
   const id = formString(formData, "id");
   const huidig = formString(formData, "huidig") === "true";
