@@ -1,7 +1,8 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { KAMP_ACTIEF_TAG } from "@/lib/data/kamp";
 
 export type CreateKampState = { error: string | null };
 
@@ -29,6 +30,7 @@ export async function createKamp(
     return { error: "Aanmaken mislukt: " + error.message };
   }
 
+  revalidateTag(KAMP_ACTIEF_TAG);
   revalidatePath("/", "layout");
   return { error: null };
 }

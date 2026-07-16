@@ -1,6 +1,8 @@
-import { cache } from "react";
-import { createClient } from "@/lib/supabase/server";
+import { unstable_cache } from "next/cache";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { MAAND_KORT } from "@/lib/date";
+
+export const KAMP_ACTIEF_TAG = "kamp-actief";
 
 export type ActiefKamp = {
   id: string;
@@ -18,16 +20,22 @@ export function formatDatumBereik(startIso: string, eindIso: string) {
   return zelfdeJaar ? `${startLabel} – ${eindLabel}` : `${startLabel} ${startJaar} – ${eindLabel}`;
 }
 
-// cache() dedupes this within a single request — layout.tsx and every
-// page.tsx call it independently, and without this they'd each hit
-// Supabase separately for the exact same row.
-export const getActiefKamp = cache(async (): Promise<ActiefKamp | null> => {
-  const supabase = await createClient();
-  const { data } = await supabase
-    .from("kamp")
-    .select("id, naam, start_datum, eind_datum")
-    .eq("is_actief", true)
-    .maybeSingle();
+// Eén kamp per jaar — dit verandert zelden, dus we cachen 'm buiten de
+// request om i.p.v. bij elke navigatie opnieuw te bevragen. createKamp()
+// maakt deze cache ongeldig via revalidateTag(KAMP_ACTIEF_TAG). Gebruikt de
+// admin-client omdat unstable_cache geen request-cookies mag aanraken — de
+// rij zelf is niet gebruikersspecifiek, elk account ziet hetzelfde kamp.
+export const getActiefKamp = unstable_cache(
+  async (): Promise<ActiefKamp | null> => {
+    const supabase = createAdminClient();
+    const { data } = await supabase
+      .from("kamp")
+      .select("id, naam, start_datum, eind_datum")
+      .eq("is_actief", true)
+      .maybeSingle();
 
-  return data;
-});
+    return data;
+  },
+  ["kamp-actief"],
+  { tags: [KAMP_ACTIEF_TAG] }
+);
