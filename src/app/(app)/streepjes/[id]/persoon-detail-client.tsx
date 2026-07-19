@@ -9,6 +9,7 @@ import {
 } from "@/app/(app)/streepjes/actions";
 import {
   berekenPersoonOverzicht,
+  gewogenTotaal,
   typeIcon,
   type StreepjePersoon,
   type StreepjeRuw,
@@ -37,7 +38,7 @@ export function PersoonDetailClient({
 }>) {
   const [bewerken, setBewerken] = useState(false);
   const overzicht = berekenPersoonOverzicht(ruw, persoon.id, types);
-  const totaal = Object.values(overzicht.totaalPerType).reduce((som, aantal) => som + aantal, 0);
+  const totaal = gewogenTotaal(overzicht.totaalPerType, types);
   const shussTellingen = berekenShussTellingen(shussGebeurtenissen, persoon.id);
   const winrate = shussWinrate(shussTellingen);
 
@@ -175,7 +176,7 @@ export function PersoonDetailClient({
         ) : (
           <div className="mt-3 flex flex-col divide-y divide-card-border">
             {overzicht.perDag.map(({ dag, aantalPerType }) => {
-              const dagTotaal = Object.values(aantalPerType).reduce((som, aantal) => som + aantal, 0);
+              const dagTotaal = gewogenTotaal(aantalPerType, types);
               return (
                 <div key={dag} className="flex flex-wrap items-center gap-x-4 gap-y-1.5 py-2.5">
                   <span className="text-sm font-bold capitalize">{formatDatumLang(dag)}</span>

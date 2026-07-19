@@ -1,5 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
-import type { StreepjePersoon, StreepjeRuw, StreepjeTellingen, StreepjeType } from "@/lib/streepjes-shared";
+import type { StreepjePersoon, StreepjeRuw, StreepjeType } from "@/lib/streepjes-shared";
 
 export async function getStreepjesPersonen(kampId: string): Promise<StreepjePersoon[]> {
   const supabase = await createClient();
@@ -62,7 +62,7 @@ export async function getStreepjeTypes(kampId: string): Promise<StreepjeType[]> 
   const supabase = await createClient();
   const { data } = await supabase
     .from("streepje_type")
-    .select("id, naam, kleur")
+    .select("id, naam, kleur, gewicht")
     .eq("kamp_id", kampId)
     .order("volgorde", { ascending: true });
   return data ?? [];
@@ -71,24 +71,8 @@ export async function getStreepjeTypes(kampId: string): Promise<StreepjeType[]> 
 // Aggregeert in JS i.p.v. een SQL-groepering — het aantal streepjes per kamp
 // blijft klein genoeg (een zomerkamp, geen jaaromzet) om gewoon alle rijen op
 // te halen en hier te tellen, net als de aanwezigheid-aggregatie in groepen.ts.
-export async function getStreepjeTellingen(kampId: string): Promise<StreepjeTellingen> {
-  const supabase = await createClient();
-  const { data } = await supabase
-    .from("streepje")
-    .select("streepje_persoon_id, streepje_type_id")
-    .eq("kamp_id", kampId);
-
-  const tellingen: StreepjeTellingen = {};
-  for (const row of data ?? []) {
-    const perType = (tellingen[row.streepje_persoon_id] ??= {});
-    perType[row.streepje_type_id] = (perType[row.streepje_type_id] ?? 0) + 1;
-  }
-  return tellingen;
-}
-
-// Zelfde schaal-argument als getStreepjeTellingen hierboven, maar met
-// created_at erbij — basis voor leaderboards en het per-dag overzicht, die
-// de streepjes moeten kunnen groeperen per streepjesdag (8u-8u).
+// Basis voor leaderboards en het per-dag overzicht, die de streepjes moeten
+// kunnen groeperen per streepjesdag (8u-8u).
 export async function getStreepjesRuw(kampId: string): Promise<StreepjeRuw[]> {
   const supabase = await createClient();
   const { data } = await supabase

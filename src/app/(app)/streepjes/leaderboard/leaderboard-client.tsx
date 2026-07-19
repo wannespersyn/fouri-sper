@@ -34,7 +34,7 @@ export function LeaderboardClient({
   const [typeId, setTypeId] = useState<string | null>(null);
   const [shussModus, setShussModus] = useState<"winrate" | "adjes">("winrate");
 
-  const ranglijst = berekenLeaderboard(ruw, personen, {
+  const ranglijst = berekenLeaderboard(ruw, personen, types, {
     dag: modus === "dag" ? dag : undefined,
     typeId: typeId ?? undefined,
   });

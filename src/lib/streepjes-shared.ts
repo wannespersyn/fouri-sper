@@ -20,11 +20,11 @@ export type StreepjePersoon = {
   bio: string | null;
   fotoUrl: string | null;
 };
-export type StreepjeType = { id: string; naam: string; kleur: string };
-// persoonId -> typeId -> aantal, voor de hele kampduur.
-export type StreepjeTellingen = Record<string, Record<string, number>>;
+// gewicht: hoeveel een streepje van dit type meetelt in gecombineerde totalen
+// (bv. Sterke = 2 t.o.v. Pintje = 1) — per-type aantallen blijven ongewogen.
+export type StreepjeType = { id: string; naam: string; kleur: string; gewicht: number };
 // Eén rij per streepje, met tijdstip — basis voor leaderboard- en
-// per-dag-aggregatie (i.t.t. StreepjeTellingen, dat al vooraf getotaliseerd is).
+// per-dag-aggregatie.
 export type StreepjeRuw = { streepje_persoon_id: string; streepje_type_id: string; created_at: string };
 
 const STREEPJES_TIJDZONE = "Europe/Brussels";
@@ -69,23 +69,30 @@ export type StreepjeLeaderboardRegel = {
   perType: Record<string, number>;
 };
 
+// Som van aantalPerType, gewogen per type (Sterke telt bv. dubbel zo zwaar
+// als Pintje) — gebruikt voor elke gecombineerde "Totaal", i.t.t. de
+// per-type aantallen zelf, die altijd ongewogen blijven.
+export function gewogenTotaal(aantalPerType: Record<string, number>, types: StreepjeType[]): number {
+  return types.reduce((som, t) => som + (aantalPerType[t.id] ?? 0) * t.gewicht, 0);
+}
+
 // Rangschikt personen op aantal streepjes. Zonder opties all-time en over
-// alle soorten heen; `dag` beperkt tot één streepjesdag, `typeId` tot één
-// specifiek drankje (bv. apart klassement voor Pintje vs. Sterke).
+// alle soorten heen (dan gewogen per type); `dag` beperkt tot één
+// streepjesdag, `typeId` tot één specifiek drankje (bv. apart klassement voor
+// Pintje vs. Sterke — daar telt elk streepje van dat type gewoon als 1, het
+// gewicht is alleen relevant om soorten onderling te vergelijken in "Alle").
 export function berekenLeaderboard(
   ruw: StreepjeRuw[],
   personen: StreepjePersoon[],
+  types: StreepjeType[],
   opts?: { dag?: string; typeId?: string }
 ): StreepjeLeaderboardRegel[] {
-  const perPersoon = new Map<string, number>();
   const dagenPerPersoon = new Map<string, Set<string>>();
   const perTypePerPersoon = new Map<string, Record<string, number>>();
 
   for (const s of ruw) {
     if (opts?.dag !== undefined && streepjesDag(s.created_at) !== opts.dag) continue;
     if (opts?.typeId !== undefined && s.streepje_type_id !== opts.typeId) continue;
-
-    perPersoon.set(s.streepje_persoon_id, (perPersoon.get(s.streepje_persoon_id) ?? 0) + 1);
 
     const dagen = dagenPerPersoon.get(s.streepje_persoon_id) ?? new Set<string>();
     dagen.add(streepjesDag(s.created_at));
@@ -98,13 +105,15 @@ export function berekenLeaderboard(
 
   return personen
     .map((persoon) => {
-      const aantal = perPersoon.get(persoon.id) ?? 0;
+      const perType = perTypePerPersoon.get(persoon.id) ?? {};
+      const aantal =
+        opts?.typeId !== undefined ? (perType[opts.typeId] ?? 0) : gewogenTotaal(perType, types);
       const aantalDagen = dagenPerPersoon.get(persoon.id)?.size ?? 0;
       return {
         persoon,
         aantal,
         gemiddeldePerDag: aantalDagen > 0 ? aantal / aantalDagen : 0,
-        perType: perTypePerPersoon.get(persoon.id) ?? {},
+        perType,
       };
     })
     .filter((r) => r.aantal > 0)

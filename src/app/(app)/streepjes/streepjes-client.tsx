@@ -10,10 +10,13 @@ import {
 import {
   zoekPersonen,
   typeIcon,
+  berekenPersoonOverzicht,
+  gewogenTotaal,
   type StreepjePersoon,
-  type StreepjeTellingen,
+  type StreepjeRuw,
   type StreepjeType,
 } from "@/lib/streepjes-shared";
+import { formatDatumLang } from "@/lib/date";
 import { StarIcon, CheckIcon, PlusIcon, MinusIcon, LedenIcon } from "@/components/icons";
 import Link from "next/link";
 import Image from "next/image";
@@ -23,11 +26,11 @@ const FLASH_DUUR_MS = 500;
 export function StreepjesClient({
   personen,
   types,
-  tellingen,
+  ruw,
 }: Readonly<{
   personen: StreepjePersoon[];
   types: StreepjeType[];
-  tellingen: StreepjeTellingen;
+  ruw: StreepjeRuw[];
 }>) {
   const [query, setQuery] = useState("");
   const [flashKey, setFlashKey] = useState<string | null>(null);
@@ -46,9 +49,10 @@ export function StreepjesClient({
   }
 
   function renderPersoonKaart(p: StreepjePersoon) {
-    const persoonTellingen = tellingen[p.id] ?? {};
-    const totaal = Object.values(persoonTellingen).reduce((som, aantal) => som + aantal, 0);
     const uitgeklapt = uitgeklaptId === p.id;
+    const overzicht = uitgeklapt ? berekenPersoonOverzicht(ruw, p.id, types) : null;
+    const persoonTellingen = overzicht?.totaalPerType ?? {};
+    const totaal = gewogenTotaal(persoonTellingen, types);
 
     return (
       <div
@@ -124,35 +128,59 @@ export function StreepjesClient({
           </div>
         </div>
 
-        {uitgeklapt && (
-          <div
-            className="mt-2.5 flex flex-wrap items-center gap-x-4 gap-y-1.5 border-t border-card-border pt-2.5 text-sm"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {types.map((t) => {
-              const Icon = typeIcon(t.naam);
-              const aantal = persoonTellingen[t.id] ?? 0;
-              const geflashed = flashKey === `${p.id}:${t.id}`;
-              return (
-                <span key={t.id} className="flex items-center gap-1.5 font-semibold text-[#4f5b52]">
-                  <Icon width={15} height={15} style={{ color: t.kleur }} />
-                  {t.naam}: {aantal}
-                  <form action={removeStreepje} onSubmit={() => flash(p.id, t.id)}>
-                    <input type="hidden" name="streepje_persoon_id" value={p.id} />
-                    <input type="hidden" name="streepje_type_id" value={t.id} />
-                    <button
-                      type="submit"
-                      disabled={aantal === 0 || geflashed}
-                      aria-label={`-1 ${t.naam} voor ${p.naam}`}
-                      className="flex size-5 flex-none items-center justify-center rounded-full border border-card-border text-[#4f5b52] transition active:scale-90 disabled:opacity-30"
-                    >
-                      <MinusIcon width={12} height={12} />
-                    </button>
-                  </form>
-                </span>
-              );
-            })}
-            <span className="ml-auto font-extrabold text-[#25322b]">Totaal: {totaal}</span>
+        {uitgeklapt && overzicht && (
+          <div className="mt-2.5 border-t border-card-border pt-2.5 text-sm" onClick={(e) => e.stopPropagation()}>
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5">
+              {types.map((t) => {
+                const Icon = typeIcon(t.naam);
+                const aantal = persoonTellingen[t.id] ?? 0;
+                const geflashed = flashKey === `${p.id}:${t.id}`;
+                return (
+                  <span key={t.id} className="flex items-center gap-1.5 font-semibold text-[#4f5b52]">
+                    <Icon width={15} height={15} style={{ color: t.kleur }} />
+                    {t.naam}: {aantal}
+                    <form action={removeStreepje} onSubmit={() => flash(p.id, t.id)}>
+                      <input type="hidden" name="streepje_persoon_id" value={p.id} />
+                      <input type="hidden" name="streepje_type_id" value={t.id} />
+                      <button
+                        type="submit"
+                        disabled={aantal === 0 || geflashed}
+                        aria-label={`-1 ${t.naam} voor ${p.naam}`}
+                        className="flex size-5 flex-none items-center justify-center rounded-full border border-card-border text-[#4f5b52] transition active:scale-90 disabled:opacity-30"
+                      >
+                        <MinusIcon width={12} height={12} />
+                      </button>
+                    </form>
+                  </span>
+                );
+              })}
+              <span className="ml-auto font-extrabold text-[#25322b]">Totaal: {totaal}</span>
+            </div>
+
+            {overzicht.perDag.length > 0 && (
+              <div className="mt-2.5 flex flex-col divide-y divide-card-border border-t border-card-border">
+                {overzicht.perDag.map(({ dag, aantalPerType }) => {
+                  const dagTotaal = gewogenTotaal(aantalPerType, types);
+                  return (
+                    <div key={dag} className="flex flex-wrap items-center gap-x-3 gap-y-1 py-1.5">
+                      <span className="font-bold capitalize text-[#4f5b52]">{formatDatumLang(dag)}</span>
+                      {types.map((t) => {
+                        const aantal = aantalPerType[t.id] ?? 0;
+                        if (aantal === 0) return null;
+                        const Icon = typeIcon(t.naam);
+                        return (
+                          <span key={t.id} className="flex items-center gap-1 text-[#4f5b52]">
+                            <Icon width={13} height={13} style={{ color: t.kleur }} />
+                            {aantal}
+                          </span>
+                        );
+                      })}
+                      <span className="ml-auto font-extrabold text-[#25322b]">{dagTotaal}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         )}
       </div>
