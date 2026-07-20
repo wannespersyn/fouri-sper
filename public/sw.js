@@ -13,6 +13,36 @@ self.addEventListener("activate", (event) => {
   );
 });
 
+self.addEventListener("push", (event) => {
+  if (!event.data) return;
+  const { title, body, url } = event.data.json();
+
+  event.waitUntil(
+    self.registration.showNotification(title, {
+      body,
+      icon: "/pwa-icon-192",
+      badge: "/pwa-icon-192",
+      data: { url: url || "/" },
+    })
+  );
+});
+
+// Focust een al open tab op de juiste url i.p.v. altijd een nieuw tabblad
+// te openen — de app draait meestal al als PWA op de hoofdtelefoon.
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const url = event.notification.data?.url || "/";
+
+  event.waitUntil(
+    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((clients) => {
+      for (const client of clients) {
+        if (new URL(client.url).pathname === url && "focus" in client) return client.focus();
+      }
+      return self.clients.openWindow(url);
+    })
+  );
+});
+
 // Network-first, falling back to the last cached copy when offline. Server
 // actions and Supabase auth flows are POSTs and never hit this cache.
 self.addEventListener("fetch", (event) => {

@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getActiefKamp } from "@/lib/data/kamp";
 import { formString } from "@/lib/form";
+import { stuurPushNaarAllen } from "@/lib/push/server";
 
 export async function addStreepje(formData: FormData) {
   const kamp = await getActiefKamp();
@@ -145,6 +146,26 @@ export async function removeShussGebeurtenis(formData: FormData) {
 
   revalidatePath(`/streepjes/${streepjePersoonId}`);
   revalidatePath("/streepjes/leaderboard");
+}
+
+// Stuurt een pushbericht naar iedereen die geabonneerd is behalve de
+// afzender zelf — die weet al dat die wilt shussen. Geen tabel nodig om de
+// oproep zelf bij te houden, het is puur "stuur dit bericht nu".
+export async function stuurShussOproep() {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return;
+
+  await stuurPushNaarAllen(
+    {
+      title: "Iemand wil shussen! 🎲",
+      body: "Wie doet er mee?",
+      url: "/streepjes/leaderboard",
+    },
+    user.id
+  );
 }
 
 export async function toggleStreepjePersoonFavoriet(formData: FormData) {
