@@ -58,7 +58,7 @@ export function ShussOproepKnop() {
       onClick={oproepen}
       disabled={status === "bezig"}
       aria-label="Ik wil shussen — stuur een oproep"
-      className="fixed bottom-20 left-4 z-30 flex size-13 flex-none items-center justify-center rounded-full bg-accent text-white shadow-[0_6px_16px_rgba(0,0,0,0.3)] transition active:scale-90 disabled:opacity-60 md:bottom-6 md:left-6"
+      className="flex size-13 flex-none items-center justify-center rounded-full bg-accent text-white shadow-[0_6px_16px_rgba(0,0,0,0.3)] transition active:scale-90 disabled:opacity-60"
     >
       {status === "verstuurd" ? (
         <CheckIcon width={22} height={22} />

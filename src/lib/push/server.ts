@@ -1,13 +1,23 @@
 import webpush from "web-push";
 import { createAdminClient } from "@/lib/supabase/admin";
 
-webpush.setVapidDetails(
-  process.env.VAPID_SUBJECT!,
-  process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!,
-  process.env.VAPID_PRIVATE_KEY!
-);
-
 export type PushPayload = { title: string; body: string; url?: string };
+
+let vapidGeconfigureerd = false;
+
+// Pas bij de eerste effectieve aanroep geconfigureerd i.p.v. op module-niveau
+// — anders breekt een ontbrekende/foutieve VAPID-env-var (bv. dev-server niet
+// herstart na het toevoegen ervan) elke server action die dit bestand
+// importeert, ook actions die niets met push te maken hebben.
+function zorgVoorVapidConfig() {
+  if (vapidGeconfigureerd) return;
+  webpush.setVapidDetails(
+    process.env.VAPID_SUBJECT!,
+    process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!,
+    process.env.VAPID_PRIVATE_KEY!
+  );
+  vapidGeconfigureerd = true;
+}
 
 // Stuurt naar alle geabonneerde toestellen, optioneel één gebruiker
 // overslaan (degene die de oproep zelf start hoeft 'm niet te ontvangen).
@@ -15,6 +25,7 @@ export type PushPayload = { title: string; body: string; url?: string };
 // moet lezen — RLS op push_subscription staat dat terecht niet toe voor het
 // gewone authenticated-account.
 export async function stuurPushNaarAllen(payload: PushPayload, exclGebruikerId?: string) {
+  zorgVoorVapidConfig();
   const supabase = createAdminClient();
   let query = supabase.from("push_subscription").select("id, gebruiker_id, endpoint, p256dh, auth");
   if (exclGebruikerId) query = query.neq("gebruiker_id", exclGebruikerId);
