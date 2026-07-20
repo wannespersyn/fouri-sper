@@ -148,9 +148,19 @@ export async function removeShussGebeurtenis(formData: FormData) {
   revalidatePath("/streepjes/leaderboard");
 }
 
+// Wisselende speelse teksten i.p.v. steeds dezelfde melding — anders wordt
+// een oproep na een paar keer onzichtbaar ("weer datzelfde bericht").
+const SHUSS_OPROEP_TEKSTEN = [
+  "Wie gaat me pakken??🍻",
+  "Geachtte dieren, kom shussen! 🐶",
+  "Usse Usse Usse wie wilt er shussen? 🦀",
+];
+
 // Stuurt een pushbericht naar iedereen die geabonneerd is behalve de
 // afzender zelf — die weet al dat die wilt shussen. Geen tabel nodig om de
-// oproep zelf bij te houden, het is puur "stuur dit bericht nu".
+// oproep zelf bij te houden, het is puur "stuur dit bericht nu". De naam komt
+// uit het e-mailadres (voor de "@") omdat er geen apart naamveld per
+// gebruiker bijgehouden wordt in dit schema.
 export async function stuurShussOproep() {
   const supabase = await createClient();
   const {
@@ -158,10 +168,14 @@ export async function stuurShussOproep() {
   } = await supabase.auth.getUser();
   if (!user) return;
 
+  const naam = user.email?.split("@")[0] ?? "Iemand";
+  const naamHoofdletter = naam.charAt(0).toUpperCase() + naam.slice(1);
+  const tekst = SHUSS_OPROEP_TEKSTEN[Math.floor(Math.random() * SHUSS_OPROEP_TEKSTEN.length)];
+
   await stuurPushNaarAllen(
     {
-      title: "Iemand wil shussen! 🎲",
-      body: "Wie doet er mee?",
+      title: `${naamHoofdletter} wil shussen! 🎲`,
+      body: tekst,
       url: "/streepjes/leaderboard",
     },
     user.id

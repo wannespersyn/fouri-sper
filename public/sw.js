@@ -22,6 +22,12 @@ self.addEventListener("push", (event) => {
       body,
       icon: "/pwa-icon-192",
       badge: "/pwa-icon-192",
+      // Nieuwe oproep vervangt een vorige i.p.v. dat ze zich opstapelen in
+      // het meldingenscherm, en de trilling maakt 'm net wat opvallender
+      // dan een standaard stille melding.
+      tag: "shuss-oproep",
+      renotify: true,
+      vibrate: [200, 100, 200],
       data: { url: url || "/" },
     })
   );
