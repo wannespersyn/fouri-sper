@@ -157,11 +157,17 @@ const SHUSS_OPROEP_TEKSTEN = [
 ];
 
 // Stuurt een pushbericht naar iedereen die geabonneerd is behalve de
-// afzender zelf — die weet al dat die wilt shussen. Geen tabel nodig om de
-// oproep zelf bij te houden, het is puur "stuur dit bericht nu". De naam komt
-// uit het e-mailadres (voor de "@") omdat er geen apart naamveld per
-// gebruiker bijgehouden wordt in dit schema.
+// afzender zelf — die weet al dat die wilt shussen. Legt ook een shuss_oproep
+// rij aan zodat leden ja/nee kunnen antwoorden (max 4 ja's, zie
+// reageerOpShussOproep), met de afzender daar automatisch bij als eerste
+// "ja". De naam komt uit het e-mailadres (voor de "@") omdat er geen apart
+// naamveld per gebruiker bijgehouden wordt in dit schema, en wordt
+// gedenormaliseerd in shuss_oproep opgeslagen zodat andere leden 'm kunnen
+// tonen zonder een admin-lookup op auth.users nodig te hebben.
 export async function stuurShussOproep() {
+  const kamp = await getActiefKamp();
+  if (!kamp) return;
+
   const supabase = await createClient();
   const {
     data: { user },
@@ -172,14 +178,54 @@ export async function stuurShussOproep() {
   const naamHoofdletter = naam.charAt(0).toUpperCase() + naam.slice(1);
   const tekst = SHUSS_OPROEP_TEKSTEN[Math.floor(Math.random() * SHUSS_OPROEP_TEKSTEN.length)];
 
+  const { data: oproep } = await supabase
+    .from("shuss_oproep")
+    .insert({ kamp_id: kamp.id, afzender_id: user.id, afzender_naam: naamHoofdletter })
+    .select("id")
+    .single();
+
+  if (oproep) {
+    await supabase.rpc("reageer_op_shuss_oproep", { p_oproep_id: oproep.id, p_reactie: "ja" });
+  }
+
   await stuurPushNaarAllen(
     {
-      title: `${naamHoofdletter} wil shussen! 🎲`,
+      title: `${naamHoofdletter} wil shussen!`,
       body: tekst,
-      url: "/streepjes/leaderboard",
+      url: "/streepjes",
     },
     user.id
   );
+
+  revalidatePath("/streepjes");
+}
+
+export type ShussOproepReactieResultaat = { ok: true; aantalJa: number } | { ok: false };
+
+// Ja/nee-antwoord op de huidige shuss-oproep. De cap van 4 ja's wordt
+// atomair afgedwongen in de databasefunctie (rij-lock op shuss_oproep), dus
+// hier enkel de databasefout vertalen naar "vol" voor de UI.
+export async function reageerOpShussOproep(
+  oproepId: string,
+  reactie: "ja" | "nee"
+): Promise<ShussOproepReactieResultaat> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { ok: false };
+
+  const { error } = await supabase.rpc("reageer_op_shuss_oproep", { p_oproep_id: oproepId, p_reactie: reactie });
+  revalidatePath("/streepjes");
+  if (error) return { ok: false };
+
+  const { count } = await supabase
+    .from("shuss_oproep_reactie")
+    .select("id", { count: "exact", head: true })
+    .eq("oproep_id", oproepId)
+    .eq("reactie", "ja");
+
+  return { ok: true, aantalJa: count ?? 0 };
 }
 
 export async function toggleStreepjePersoonFavoriet(formData: FormData) {

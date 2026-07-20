@@ -9,6 +9,24 @@ export type ShussGebeurtenis = { streepje_persoon_id: string; soort: ShussSoort 
 
 export type ShussTellingen = { gewonnen: number; verloren: number; adjes: number };
 
+// Max aantal mensen dat "ja" kan zeggen op een shuss-oproep, afzender
+// inbegrepen — shuss speel je met z'n vieren, geen wachtrij nodig.
+export const SHUSS_OPROEP_MAX_JA = 4;
+
+// Een oproep ouder dan dit telt niet meer als "actief" — anders blijft een
+// oproep van gisteren nog op het scherm staan alsof iemand nu wil shussen.
+export const SHUSS_OPROEP_ACTIEF_MS = 3 * 60 * 60 * 1000;
+
+export type ShussOproepReactie = "ja" | "nee";
+
+export type HuidigeShussOproep = {
+  id: string;
+  afzenderNaam: string;
+  isEigenOproep: boolean;
+  aantalJa: number;
+  eigenReactie: ShussOproepReactie | null;
+};
+
 export function berekenShussTellingen(gebeurtenissen: ShussGebeurtenis[], persoonId: string): ShussTellingen {
   const tellingen: ShussTellingen = { gewonnen: 0, verloren: 0, adjes: 0 };
   for (const g of gebeurtenissen) {

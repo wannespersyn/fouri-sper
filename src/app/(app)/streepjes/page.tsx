@@ -1,24 +1,31 @@
 import Link from "next/link";
 import { PageHeader } from "@/components/page-header";
 import { getActiefKamp } from "@/lib/data/kamp";
-import { getStreepjesPersonen, getStreepjesRuw, getStreepjeTypes } from "@/lib/data/streepjes";
+import { getHuidigeShussOproep, getStreepjesPersonen, getStreepjesRuw, getStreepjeTypes } from "@/lib/data/streepjes";
 import { StreepjesClient } from "@/app/(app)/streepjes/streepjes-client";
 import { ShussOproepKnop } from "@/components/shuss-oproep-knop";
+import { ShussOproepBanner } from "@/components/shuss-oproep-banner";
 import { TrophyIcon } from "@/components/icons";
 
 export default async function StreepjesPage() {
   const kamp = await getActiefKamp();
   if (!kamp) return null; // gated by (app)/layout.tsx, shouldn't happen
 
-  const [personen, types, ruw] = await Promise.all([
+  const [personen, types, ruw, huidigeOproep] = await Promise.all([
     getStreepjesPersonen(kamp.id),
     getStreepjeTypes(kamp.id),
     getStreepjesRuw(kamp.id),
+    getHuidigeShussOproep(kamp.id),
   ]);
 
   return (
     <>
       <PageHeader title="Streepjes" subtitle="" />
+      {huidigeOproep && (
+        <div className="px-3.5 pt-3.5 sm:px-5.5 sm:pt-5.5">
+          <ShussOproepBanner oproep={huidigeOproep} />
+        </div>
+      )}
       <StreepjesClient personen={personen} types={types} ruw={ruw} />
       {/* Onderaan i.p.v. in de header — bovenin een hoek raak je op een grote
           telefoon met je duim niet, hier wel. */}

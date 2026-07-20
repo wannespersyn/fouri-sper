@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import type { StreepjePersoon, StreepjeRuw, StreepjeType } from "@/lib/streepjes-shared";
+import { SHUSS_OPROEP_ACTIEF_MS, type HuidigeShussOproep } from "@/lib/shuss-shared";
 
 export async function getStreepjesPersonen(kampId: string): Promise<StreepjePersoon[]> {
   const supabase = await createClient();
@@ -56,6 +57,43 @@ export async function getStreepjePersoon(kampId: string, persoonId: string): Pro
   }
 
   return { id: p.id, naam: p.naam, bio: p.bio, fotoUrl: p.foto_url, favoriet };
+}
+
+// Laatste shuss-oproep binnen het "actieve" venster, met de ja-teller en de
+// eigen reactie erbij. Namen van andere leden komen niet uit auth.users
+// (vereist admin-client) maar uit de gedenormaliseerde afzender_naam op de
+// oproep zelf.
+export async function getHuidigeShussOproep(kampId: string): Promise<HuidigeShussOproep | null> {
+  const supabase = await createClient();
+  const [{ data: oproep }, { data: userData }] = await Promise.all([
+    supabase
+      .from("shuss_oproep")
+      .select("id, afzender_id, afzender_naam, created_at")
+      .eq("kamp_id", kampId)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+    supabase.auth.getUser(),
+  ]);
+  if (!oproep) return null;
+  if (Date.now() - new Date(oproep.created_at).getTime() > SHUSS_OPROEP_ACTIEF_MS) return null;
+
+  const gebruikerId = userData.user?.id;
+  const { data: reacties } = await supabase
+    .from("shuss_oproep_reactie")
+    .select("gebruiker_id, reactie")
+    .eq("oproep_id", oproep.id);
+
+  const aantalJa = (reacties ?? []).filter((r) => r.reactie === "ja").length;
+  const eigenReactie = (reacties ?? []).find((r) => r.gebruiker_id === gebruikerId)?.reactie ?? null;
+
+  return {
+    id: oproep.id,
+    afzenderNaam: oproep.afzender_naam,
+    isEigenOproep: oproep.afzender_id === gebruikerId,
+    aantalJa,
+    eigenReactie: eigenReactie as "ja" | "nee" | null,
+  };
 }
 
 export async function getStreepjeTypes(kampId: string): Promise<StreepjeType[]> {
