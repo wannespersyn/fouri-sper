@@ -111,11 +111,26 @@ export async function getStreepjeTypes(kampId: string): Promise<StreepjeType[]> 
 // te halen en hier te tellen, net als de aanwezigheid-aggregatie in groepen.ts.
 // Basis voor leaderboards en het per-dag overzicht, die de streepjes moeten
 // kunnen groeperen per streepjesdag (8u-8u).
+//
+// Paginering is wel nodig: PostgREST geeft standaard maximaal 1000 rijen per
+// call terug, en een druk kamp haalt dat aantal streepjes intussen ruim
+// (nieuwe streepjes vielen zo stilzwijgend buiten het resultaat — leek dan
+// alsof "toevoegen" niet meer werkte, terwijl de insert zelf prima lukte).
 export async function getStreepjesRuw(kampId: string): Promise<StreepjeRuw[]> {
   const supabase = await createClient();
-  const { data } = await supabase
-    .from("streepje")
-    .select("streepje_persoon_id, streepje_type_id, created_at")
-    .eq("kamp_id", kampId);
-  return data ?? [];
+  const PAGINA_GROOTTE = 1000;
+  const alles: StreepjeRuw[] = [];
+  let van = 0;
+  for (;;) {
+    const { data } = await supabase
+      .from("streepje")
+      .select("streepje_persoon_id, streepje_type_id, created_at")
+      .eq("kamp_id", kampId)
+      .range(van, van + PAGINA_GROOTTE - 1);
+    if (!data || data.length === 0) break;
+    alles.push(...data);
+    if (data.length < PAGINA_GROOTTE) break;
+    van += PAGINA_GROOTTE;
+  }
+  return alles;
 }

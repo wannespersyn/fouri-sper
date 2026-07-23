@@ -6,34 +6,41 @@ import { getActiefKamp } from "@/lib/data/kamp";
 import { formString } from "@/lib/form";
 import { stuurPushNaarAllen } from "@/lib/push/server";
 
-export async function addStreepje(formData: FormData) {
+export type StreepjeActieResultaat = { ok: true } | { ok: false; error: string };
+
+export async function addStreepje(formData: FormData): Promise<StreepjeActieResultaat> {
   const kamp = await getActiefKamp();
-  if (!kamp) return;
+  if (!kamp) return { ok: false, error: "Geen actief kamp gevonden." };
 
   const streepjePersoonId = formString(formData, "streepje_persoon_id");
   const streepjeTypeId = formString(formData, "streepje_type_id");
-  if (!streepjePersoonId || !streepjeTypeId) return;
+  if (!streepjePersoonId || !streepjeTypeId) return { ok: false, error: "Ontbrekende gegevens." };
 
   const supabase = await createClient();
-  await supabase.from("streepje").insert({
+  const { error } = await supabase.from("streepje").insert({
     kamp_id: kamp.id,
     streepje_persoon_id: streepjePersoonId,
     streepje_type_id: streepjeTypeId,
   });
+  if (error) {
+    console.error("addStreepje", error);
+    return { ok: false, error: "Kon streepje niet opslaan, probeer opnieuw." };
+  }
 
   revalidatePath("/streepjes");
+  return { ok: true };
 }
 
 // Verwijdert het laatst toegevoegde streepje voor deze combinatie i.p.v. een
 // specifiek id mee te geven — de UI toont enkel totalen per type, geen
 // individuele streepjes, dus "verwijder er één" betekent hier "het laatste".
-export async function removeStreepje(formData: FormData) {
+export async function removeStreepje(formData: FormData): Promise<StreepjeActieResultaat> {
   const kamp = await getActiefKamp();
-  if (!kamp) return;
+  if (!kamp) return { ok: false, error: "Geen actief kamp gevonden." };
 
   const streepjePersoonId = formString(formData, "streepje_persoon_id");
   const streepjeTypeId = formString(formData, "streepje_type_id");
-  if (!streepjePersoonId || !streepjeTypeId) return;
+  if (!streepjePersoonId || !streepjeTypeId) return { ok: false, error: "Ontbrekende gegevens." };
 
   const supabase = await createClient();
   const { data } = await supabase
@@ -46,11 +53,16 @@ export async function removeStreepje(formData: FormData) {
     .limit(1);
 
   const laatste = data?.[0];
-  if (!laatste) return;
+  if (!laatste) return { ok: true };
 
-  await supabase.from("streepje").delete().eq("id", laatste.id);
+  const { error } = await supabase.from("streepje").delete().eq("id", laatste.id);
+  if (error) {
+    console.error("removeStreepje", error);
+    return { ok: false, error: "Kon streepje niet verwijderen, probeer opnieuw." };
+  }
 
   revalidatePath("/streepjes");
+  return { ok: true };
 }
 
 export async function addStreepjePersoon(formData: FormData) {

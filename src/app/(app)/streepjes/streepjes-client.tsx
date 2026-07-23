@@ -37,15 +37,27 @@ export function StreepjesClient({
   const [nieuweNaam, setNieuweNaam] = useState("");
   const [toevoegenOpen, setToevoegenOpen] = useState(false);
   const [uitgeklaptId, setUitgeklaptId] = useState<string | null>(null);
+  const [foutmelding, setFoutmelding] = useState<string | null>(null);
 
   const resultaten = zoekPersonen(personen, query);
   const favorieten = resultaten.filter((p) => p.favoriet);
   const anderen = resultaten.filter((p) => !p.favoriet);
 
   function flash(persoonId: string, typeId: string) {
+    setFoutmelding(null);
     const key = `${persoonId}:${typeId}`;
     setFlashKey(key);
     window.setTimeout(() => setFlashKey((k) => (k === key ? null : k)), FLASH_DUUR_MS);
+  }
+
+  async function handleAddStreepje(formData: FormData) {
+    const resultaat = await addStreepje(formData);
+    if (!resultaat.ok) setFoutmelding(resultaat.error);
+  }
+
+  async function handleRemoveStreepje(formData: FormData) {
+    const resultaat = await removeStreepje(formData);
+    if (!resultaat.ok) setFoutmelding(resultaat.error);
   }
 
   function renderPersoonKaart(p: StreepjePersoon) {
@@ -110,7 +122,7 @@ export function StreepjesClient({
               const geflashed = flashKey === key;
               const Icon = typeIcon(t.naam);
               return (
-                <form key={t.id} action={addStreepje} onSubmit={() => flash(p.id, t.id)}>
+                <form key={t.id} action={handleAddStreepje} onSubmit={() => flash(p.id, t.id)}>
                   <input type="hidden" name="streepje_persoon_id" value={p.id} />
                   <input type="hidden" name="streepje_type_id" value={t.id} />
                   <button
@@ -139,7 +151,7 @@ export function StreepjesClient({
                   <span key={t.id} className="flex items-center gap-1.5 font-semibold text-[#4f5b52]">
                     <Icon width={15} height={15} style={{ color: t.kleur }} />
                     {t.naam}: {aantal}
-                    <form action={removeStreepje} onSubmit={() => flash(p.id, t.id)}>
+                    <form action={handleRemoveStreepje} onSubmit={() => flash(p.id, t.id)}>
                       <input type="hidden" name="streepje_persoon_id" value={p.id} />
                       <input type="hidden" name="streepje_type_id" value={t.id} />
                       <button
@@ -232,6 +244,12 @@ export function StreepjesClient({
             Toevoegen
           </button>
         </form>
+      )}
+
+      {foutmelding && (
+        <p className="mt-2 flex-none rounded-xl bg-[#f7e2dc] px-3.5 py-2 text-xs font-semibold text-[#a83e26]">
+          {foutmelding}
+        </p>
       )}
 
       <div className="mt-3 flex-1 overflow-auto">
