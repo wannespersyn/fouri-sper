@@ -10,6 +10,7 @@ import {
 import {
   zoekPersonen,
   typeIcon,
+  streepjesDag,
   berekenPersoonOverzicht,
   gewogenTotaal,
   type StreepjePersoon,
@@ -17,11 +18,36 @@ import {
   type StreepjeType,
 } from "@/lib/streepjes-shared";
 import { formatDatumLang } from "@/lib/date";
-import { StarIcon, CheckIcon, PlusIcon, MinusIcon, LedenIcon } from "@/components/icons";
+import { StarIcon, CheckIcon, PlusIcon, MinusIcon, LedenIcon, BierIcon, SterkeIcon } from "@/components/icons";
 import Link from "next/link";
 import Image from "next/image";
 
 const FLASH_DUUR_MS = 500;
+
+// Aantal streepjesdagen waarop deze persoon de meeste streepjes had van een
+// subset types (bv. alle "bier"-achtige soorten samen) — elke dag heeft zijn
+// eigen winnaar(s), dus over het hele kamp heen kan iemand er meerdere
+// winnen. Dit aantal is de "streak"-teller naast de naam in de lijst.
+function dagWinstTellingen(ruw: StreepjeRuw[], typeIds: string[]): Map<string, number> {
+  const perDagPerPersoon = new Map<string, Map<string, number>>();
+  for (const s of ruw) {
+    if (!typeIds.includes(s.streepje_type_id)) continue;
+    const dag = streepjesDag(s.created_at);
+    const perPersoon = perDagPerPersoon.get(dag) ?? new Map<string, number>();
+    perPersoon.set(s.streepje_persoon_id, (perPersoon.get(s.streepje_persoon_id) ?? 0) + 1);
+    perDagPerPersoon.set(dag, perPersoon);
+  }
+
+  const tellingen = new Map<string, number>();
+  for (const perPersoon of perDagPerPersoon.values()) {
+    const dagMax = Math.max(...perPersoon.values());
+    if (dagMax === 0) continue;
+    for (const [persoonId, aantal] of perPersoon) {
+      if (aantal === dagMax) tellingen.set(persoonId, (tellingen.get(persoonId) ?? 0) + 1);
+    }
+  }
+  return tellingen;
+}
 
 export function StreepjesClient({
   personen,
@@ -42,6 +68,13 @@ export function StreepjesClient({
   const resultaten = zoekPersonen(personen, query);
   const favorieten = resultaten.filter((p) => p.favoriet);
   const anderen = resultaten.filter((p) => !p.favoriet);
+
+  // Wie op minstens 1 dag de meeste bier/sterke had, krijgt een badge met het
+  // aantal gewonnen dagen naast de naam in de lijst.
+  const bierTypeIds = types.filter((t) => typeIcon(t.naam) === BierIcon).map((t) => t.id);
+  const sterkeTypeIds = types.filter((t) => typeIcon(t.naam) === SterkeIcon).map((t) => t.id);
+  const bierWinstTellingen = dagWinstTellingen(ruw, bierTypeIds);
+  const sterkeWinstTellingen = dagWinstTellingen(ruw, sterkeTypeIds);
 
   function flash(persoonId: string, typeId: string) {
     setFoutmelding(null);
@@ -65,6 +98,9 @@ export function StreepjesClient({
     const overzicht = uitgeklapt ? berekenPersoonOverzicht(ruw, p.id, types) : null;
     const persoonTellingen = overzicht?.totaalPerType ?? {};
     const totaal = gewogenTotaal(persoonTellingen, types);
+
+    const bierWins = bierWinstTellingen.get(p.id) ?? 0;
+    const sterkeWins = sterkeWinstTellingen.get(p.id) ?? 0;
 
     return (
       <div
@@ -115,6 +151,25 @@ export function StreepjesClient({
           </form>
 
           <span className="min-w-0 flex-1 truncate text-base font-bold">{p.naam}</span>
+
+          {bierWins > 0 && (
+            <span
+              title={`${bierWins}× dagwinnaar bier`}
+              className="flex flex-none items-center gap-0.5 rounded-full bg-[#fef3c7] px-1.5 py-0.5 text-xs font-extrabold text-[#92610a]"
+            >
+              <BierIcon width={11} height={11} />
+              {bierWins}
+            </span>
+          )}
+          {sterkeWins > 0 && (
+            <span
+              title={`${sterkeWins}× dagwinnaar sterke`}
+              className="flex flex-none items-center gap-0.5 rounded-full bg-[#fee2e2] px-1.5 py-0.5 text-xs font-extrabold text-[#b91c1c]"
+            >
+              <SterkeIcon width={11} height={11} />
+              {sterkeWins}
+            </span>
+          )}
 
           <div className="flex flex-none items-center gap-2" onClick={(e) => e.stopPropagation()}>
             {types.map((t) => {

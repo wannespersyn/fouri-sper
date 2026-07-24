@@ -37,6 +37,7 @@ export function PersoonDetailClient({
   shussGebeurtenissen: ShussGebeurtenis[];
 }>) {
   const [bewerken, setBewerken] = useState(false);
+  const [fotoUitvergroot, setFotoUitvergroot] = useState(false);
   const overzicht = berekenPersoonOverzicht(ruw, persoon.id, types);
   const totaal = gewogenTotaal(overzicht.totaalPerType, types);
   const shussTellingen = berekenShussTellingen(shussGebeurtenissen, persoon.id);
@@ -44,17 +45,42 @@ export function PersoonDetailClient({
 
   return (
     <div className="mx-auto flex max-w-205 flex-col gap-4">
+      {fotoUitvergroot && persoon.fotoUrl && (
+        <button
+          type="button"
+          onClick={() => setFotoUitvergroot(false)}
+          aria-label="Foto sluiten"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4"
+        >
+          <Image
+            src={persoon.fotoUrl}
+            alt=""
+            width={800}
+            height={800}
+            className="max-h-full max-w-full rounded-2xl object-contain"
+            unoptimized
+          />
+        </button>
+      )}
+
       <div className="rounded-[22px] border border-card-border bg-card p-5">
         <div className="flex items-start gap-4">
           {persoon.fotoUrl ? (
-            <Image
-              src={persoon.fotoUrl}
-              alt=""
-              width={72}
-              height={72}
-              className="size-18 flex-none rounded-full object-cover"
-              unoptimized
-            />
+            <button
+              type="button"
+              onClick={() => setFotoUitvergroot(true)}
+              aria-label="Foto uitvergroten"
+              className="flex-none rounded-full"
+            >
+              <Image
+                src={persoon.fotoUrl}
+                alt=""
+                width={72}
+                height={72}
+                className="size-18 rounded-full object-cover"
+                unoptimized
+              />
+            </button>
           ) : (
             <span className="flex size-18 flex-none items-center justify-center rounded-full bg-[#f0ede2] text-[#8a8172]">
               <LedenIcon width={32} height={32} />
