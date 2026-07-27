@@ -2,23 +2,30 @@
 
 import { useState } from "react";
 import Image from "next/image";
+import Link from "next/link";
 import {
   addShussGebeurtenis,
   removeShussGebeurtenis,
+  toggleStreepjePersoonLeiding,
   updateStreepjePersoonProfiel,
 } from "@/app/(app)/streepjes/actions";
 import {
+  berekenDagWinstTellingen,
   berekenPersoonOverzicht,
   berekenTruiDagen,
+  berekenTruiDagenVoorPersoon,
   gewogenTotaal,
   typeIcon,
+  TRUI_KLEUREN,
   type StreepjePersoon,
   type StreepjeRuw,
+  type StreepjeTruiKleur,
   type StreepjeType,
 } from "@/lib/streepjes-shared";
 import { berekenShussTellingen, shussWinrate, type ShussGebeurtenis, type ShussSoort } from "@/lib/shuss-shared";
 import { formatDatumLang } from "@/lib/date";
-import { LedenIcon, PencilIcon, MinusIcon, PlusIcon, TruiIcon, TruiBolletjesIcon } from "@/components/icons";
+import { TRUI_INFO } from "@/lib/trui-info";
+import { LedenIcon, PencilIcon, MinusIcon, PlusIcon, BierIcon, SterkeIcon, LeidingIcon } from "@/components/icons";
 
 const SHUSS_RIJEN: { soort: ShussSoort; label: string }[] = [
   { soort: "gewonnen", label: "Gewonnen" },
@@ -41,6 +48,7 @@ export function PersoonDetailClient({
 }>) {
   const [bewerken, setBewerken] = useState(false);
   const [fotoUitvergroot, setFotoUitvergroot] = useState(false);
+  const [openTruiKleur, setOpenTruiKleur] = useState<StreepjeTruiKleur | null>(null);
   const overzicht = berekenPersoonOverzicht(ruw, persoon.id, types);
   const totaal = gewogenTotaal(overzicht.totaalPerType, types);
   const shussTellingen = berekenShussTellingen(shussGebeurtenissen, persoon.id);
@@ -52,6 +60,11 @@ export function PersoonDetailClient({
     wit: 0,
   };
   const heeftTrui = truien.geel > 0 || truien.groen > 0 || truien.bolletjes > 0 || truien.wit > 0;
+  const truiDagen = berekenTruiDagenVoorPersoon(ruw, personen, types, persoon.id);
+  const bierTypeIds = types.filter((t) => typeIcon(t.naam) === BierIcon).map((t) => t.id);
+  const sterkeTypeIds = types.filter((t) => typeIcon(t.naam) === SterkeIcon).map((t) => t.id);
+  const bierWins = berekenDagWinstTellingen(ruw, bierTypeIds).get(persoon.id) ?? 0;
+  const sterkeWins = berekenDagWinstTellingen(ruw, sterkeTypeIds).get(persoon.id) ?? 0;
 
   return (
     <div className="mx-auto flex max-w-205 flex-col gap-4">
@@ -100,7 +113,41 @@ export function PersoonDetailClient({
             <p className="whitespace-pre-wrap text-sm text-[#4f5b52]">
               {persoon.bio || "Nog geen bio ingesteld."}
             </p>
+            {(bierWins > 0 || sterkeWins > 0) && (
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                {bierWins > 0 && (
+                  <span
+                    title={`${bierWins}× dagwinnaar bier`}
+                    className="flex flex-none items-center gap-1 rounded-full bg-[#fef3c7] px-2 py-0.5 text-xs font-extrabold text-[#92610a]"
+                  >
+                    <BierIcon width={12} height={12} />
+                    {bierWins}
+                  </span>
+                )}
+                {sterkeWins > 0 && (
+                  <span
+                    title={`${sterkeWins}× dagwinnaar sterke`}
+                    className="flex flex-none items-center gap-1 rounded-full bg-[#fee2e2] px-2 py-0.5 text-xs font-extrabold text-[#b91c1c]"
+                  >
+                    <SterkeIcon width={12} height={12} />
+                    {sterkeWins}
+                  </span>
+                )}
+              </div>
+            )}
           </div>
+          <form action={toggleStreepjePersoonLeiding}>
+            <input type="hidden" name="id" value={persoon.id} />
+            <input type="hidden" name="huidig" value={String(persoon.leiding)} />
+            <button
+              type="submit"
+              aria-label={persoon.leiding ? "Leiding-status verwijderen" : "Als leiding markeren"}
+              title={persoon.leiding ? "Leiding" : "Markeer als leiding"}
+              className="flex size-9 flex-none items-center justify-center rounded-full border border-card-border text-[#2f6d4f] transition active:scale-90"
+            >
+              <LeidingIcon width={17} height={17} fill={persoon.leiding ? "currentColor" : "none"} />
+            </button>
+          </form>
           <button
             type="button"
             onClick={() => setBewerken((b) => !b)}
@@ -208,44 +255,50 @@ export function PersoonDetailClient({
       <div className="rounded-[22px] border border-card-border bg-card p-5">
         <h2 className="text-sm font-extrabold uppercase tracking-wide text-[#8a8172]">Truien</h2>
         {heeftTrui ? (
-          <div className="mt-3 flex flex-wrap gap-2">
-            {truien.geel > 0 && (
-              <span
-                title="Gele trui — algemeen klassement"
-                className="flex items-center gap-1.5 rounded-full bg-[#fef3c7] px-3 py-1.5 text-sm font-extrabold text-[#92610a]"
-              >
-                <TruiIcon width={16} height={16} />
-                {truien.geel}
-              </span>
+          <>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {TRUI_KLEUREN.filter((kleur) => truien[kleur] > 0).map((kleur) => {
+                const info = TRUI_INFO[kleur];
+                const Icon = info.icon;
+                const actief = openTruiKleur === kleur;
+                return (
+                  <button
+                    key={kleur}
+                    type="button"
+                    onClick={() => setOpenTruiKleur((k) => (k === kleur ? null : kleur))}
+                    title={`${info.label}e trui — ${info.beschrijving}`}
+                    style={{
+                      background: info.bg,
+                      color: info.tekst,
+                      boxShadow: actief ? `inset 0 0 0 2px ${info.tekst}` : undefined,
+                    }}
+                    className="flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-extrabold transition active:scale-95"
+                  >
+                    <Icon width={16} height={16} />
+                    {truien[kleur]}
+                  </button>
+                );
+              })}
+            </div>
+
+            {openTruiKleur && (
+              <div className="mt-3 flex flex-col gap-1 border-t border-card-border pt-3">
+                <p className="text-xs font-semibold text-[#8a8172]">
+                  {TRUI_INFO[openTruiKleur].label}e trui gedragen op:
+                </p>
+                {truiDagen[openTruiKleur].map(({ dag, brondag }) => (
+                  <Link
+                    key={dag}
+                    href={`/streepjes/leaderboard?modus=totaal&dag=${brondag}`}
+                    className="flex items-center justify-between rounded-xl px-2 py-2 text-sm font-semibold text-[#4f5b52] transition active:bg-[#f6f3ea]"
+                  >
+                    <span className="capitalize">{formatDatumLang(dag)}</span>
+                    <span className="text-xs font-extrabold text-[#8a8172]">Totale stand ›</span>
+                  </Link>
+                ))}
+              </div>
             )}
-            {truien.groen > 0 && (
-              <span
-                title="Groene trui — pintjesklassement"
-                className="flex items-center gap-1.5 rounded-full bg-[#dcf3e6] px-3 py-1.5 text-sm font-extrabold text-[#1f6b43]"
-              >
-                <TruiIcon width={16} height={16} />
-                {truien.groen}
-              </span>
-            )}
-            {truien.bolletjes > 0 && (
-              <span
-                title="Bollentrui — sterkeklassement"
-                className="flex items-center gap-1.5 rounded-full bg-[#fee2e2] px-3 py-1.5 text-sm font-extrabold text-[#b91c1c]"
-              >
-                <TruiBolletjesIcon width={16} height={16} />
-                {truien.bolletjes}
-              </span>
-            )}
-            {truien.wit > 0 && (
-              <span
-                title="Witte trui — klassement onder leiding"
-                className="flex items-center gap-1.5 rounded-full bg-[#f0ede2] px-3 py-1.5 text-sm font-extrabold text-[#25322b]"
-              >
-                <TruiIcon width={16} height={16} />
-                {truien.wit}
-              </span>
-            )}
-          </div>
+          </>
         ) : (
           <p className="mt-3 text-sm text-[#6f7d72]">Nog geen enkele trui gedragen.</p>
         )}

@@ -3,11 +3,13 @@
 import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import { useSearchParams } from "next/navigation";
 import {
   berekenLeaderboard,
   huidigeStreepjesDag,
   rangschikTruiTellingen,
   typeIcon,
+  TRUI_KLEUREN,
   type StreepjePersoon,
   type StreepjeRuw,
   type StreepjeTruiKleur,
@@ -15,23 +17,10 @@ import {
 } from "@/lib/streepjes-shared";
 import { berekenShussLeaderboard, type ShussGebeurtenis } from "@/lib/shuss-shared";
 import { formatDatumLang, voegDagenToe } from "@/lib/date";
-import { LedenIcon, TruiIcon, TruiBolletjesIcon } from "@/components/icons";
+import { LedenIcon } from "@/components/icons";
+import { TRUI_INFO } from "@/lib/trui-info";
 
 const MEDAILLE_KLEUREN = ["#c8a13a", "#9aa0a6", "#a8703f"];
-
-// Kleur/label/icoon per trui-classificatie — gebruikt voor zowel de
-// filterpills als de badges per rij, zodat die twee niet uit de pas kunnen
-// lopen.
-const TRUI_INFO: Record<
-  StreepjeTruiKleur,
-  { label: string; bg: string; tekst: string; icon: typeof TruiIcon }
-> = {
-  geel: { label: "Geel", bg: "#fef3c7", tekst: "#92610a", icon: TruiIcon },
-  groen: { label: "Groen", bg: "#dcf3e6", tekst: "#1f6b43", icon: TruiIcon },
-  bolletjes: { label: "Bolletjes", bg: "#fee2e2", tekst: "#b91c1c", icon: TruiBolletjesIcon },
-  wit: { label: "Wit", bg: "#f0ede2", tekst: "#25322b", icon: TruiIcon },
-};
-const TRUI_KLEUREN: StreepjeTruiKleur[] = ["geel", "groen", "bolletjes", "wit"];
 
 export function LeaderboardClient({
   personen,
@@ -44,15 +33,20 @@ export function LeaderboardClient({
   ruw: StreepjeRuw[];
   shussGebeurtenissen: ShussGebeurtenis[];
 }>) {
+  const zoekParams = useSearchParams();
   const [weergave, setWeergave] = useState<"streepjes" | "shuss" | "truien">("streepjes");
-  const [modus, setModus] = useState<"totaal" | "dag">("dag");
-  const [dag, setDag] = useState(() => huidigeStreepjesDag());
+  // Vanaf het profiel kan je doorklikken naar de totale stand op een
+  // specifieke dag waarop je een trui droeg — die komt dan mee als
+  // ?modus=totaal&dag=... i.p.v. altijd op vandaag te starten.
+  const [modus, setModus] = useState<"totaal" | "dag">(() => (zoekParams.get("modus") === "totaal" ? "totaal" : "dag"));
+  const [dag, setDag] = useState(() => zoekParams.get("dag") ?? huidigeStreepjesDag());
   const [typeId, setTypeId] = useState<string | null>(null);
   const [shussModus, setShussModus] = useState<"winrate" | "adjes">("winrate");
   const [truiKleur, setTruiKleur] = useState<StreepjeTruiKleur | null>(null);
 
   const ranglijst = berekenLeaderboard(ruw, personen, types, {
     dag: modus === "dag" ? dag : undefined,
+    totEnMetDag: modus === "totaal" ? dag : undefined,
     typeId: typeId ?? undefined,
   });
   const shussRanglijst = berekenShussLeaderboard(shussGebeurtenissen, personen, shussModus);
@@ -221,31 +215,30 @@ export function LeaderboardClient({
             </div>
           )}
 
-          {modus === "dag" && (
-            <div className="mt-3 flex flex-none items-center justify-between gap-2 rounded-xl border border-card-border bg-card px-3 py-2">
-              <button
-                type="button"
-                aria-label="Vorige dag"
-                onClick={() => setDag((d) => voegDagenToe(d, -1))}
-                className="flex size-8 flex-none items-center justify-center rounded-full text-lg font-extrabold text-[#4f5b52]"
-              >
-                ‹
-              </button>
-              <span className="text-sm font-bold capitalize">
-                {formatDatumLang(dag)}
-                {dag === huidigeStreepjesDag() && " (vandaag)"}
-              </span>
-              <button
-                type="button"
-                aria-label="Volgende dag"
-                disabled={dag >= huidigeStreepjesDag()}
-                onClick={() => setDag((d) => voegDagenToe(d, 1))}
-                className="flex size-8 flex-none items-center justify-center rounded-full text-lg font-extrabold text-[#4f5b52] disabled:opacity-30"
-              >
-                ›
-              </button>
-            </div>
-          )}
+          <div className="mt-3 flex flex-none items-center justify-between gap-2 rounded-xl border border-card-border bg-card px-3 py-2">
+            <button
+              type="button"
+              aria-label="Vorige dag"
+              onClick={() => setDag((d) => voegDagenToe(d, -1))}
+              className="flex size-8 flex-none items-center justify-center rounded-full text-lg font-extrabold text-[#4f5b52]"
+            >
+              ‹
+            </button>
+            <span className="text-sm font-bold capitalize">
+              {modus === "totaal" && "T/m "}
+              {formatDatumLang(dag)}
+              {dag === huidigeStreepjesDag() && " (vandaag)"}
+            </span>
+            <button
+              type="button"
+              aria-label="Volgende dag"
+              disabled={dag >= huidigeStreepjesDag()}
+              onClick={() => setDag((d) => voegDagenToe(d, 1))}
+              className="flex size-8 flex-none items-center justify-center rounded-full text-lg font-extrabold text-[#4f5b52] disabled:opacity-30"
+            >
+              ›
+            </button>
+          </div>
 
           <div className="mt-3 flex-1 overflow-auto">
             {ranglijst.length === 0 ? (

@@ -5,6 +5,7 @@ import { getHuidigeShussOproep, getStreepjesPersonen, getStreepjesRuw, getStreep
 import { StreepjesClient } from "@/app/(app)/streepjes/streepjes-client";
 import { ShussOproepKnop } from "@/components/shuss-oproep-knop";
 import { ShussOproepBanner } from "@/components/shuss-oproep-banner";
+import { ShussPotjeKnop } from "@/components/shuss-potje-knop";
 import { TrophyIcon } from "@/components/icons";
 
 export default async function StreepjesPage() {
@@ -29,8 +30,9 @@ export default async function StreepjesPage() {
       <StreepjesClient personen={personen} types={types} ruw={ruw} />
       {/* Onderaan i.p.v. in de header — bovenin een hoek raak je op een grote
           telefoon met je duim niet, hier wel. */}
-      <div className="fixed right-4 bottom-20 z-30 flex flex-col items-end gap-3 md:right-6 md:bottom-6">
+      <div className="fixed right-4 bottom-30 z-30 flex flex-col items-end gap-3 md:right-6 md:bottom-6">
         <ShussOproepKnop />
+        <ShussPotjeKnop personen={personen} />
         <Link
           href="/streepjes/leaderboard"
           aria-label="Leaderboard"

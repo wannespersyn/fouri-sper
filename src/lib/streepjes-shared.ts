@@ -79,24 +79,30 @@ export function gewogenTotaal(aantalPerType: Record<string, number>, types: Stre
 
 // Rangschikt personen op aantal streepjes. Zonder opties all-time en over
 // alle soorten heen (dan gewogen per type); `dag` beperkt tot één
-// streepjesdag, `typeId` tot één specifiek drankje (bv. apart klassement voor
-// Pintje vs. Sterke — daar telt elk streepje van dat type gewoon als 1, het
-// gewicht is alleen relevant om soorten onderling te vergelijken in "Alle").
+// streepjesdag (voor het dagklassement — wie had die dag zelf het meest),
+// `totEnMetDag` cumuleert i.p.v. tot exact één dag te beperken (voor "wat was
+// de totale stand toen" — bv. doorklikken vanaf een trui-badge naar de
+// eindstand van die dag), `typeId` tot één specifiek drankje (bv. apart
+// klassement voor Pintje vs. Sterke — daar telt elk streepje van dat type
+// gewoon als 1, het gewicht is alleen relevant om soorten onderling te
+// vergelijken in "Alle").
 export function berekenLeaderboard(
   ruw: StreepjeRuw[],
   personen: StreepjePersoon[],
   types: StreepjeType[],
-  opts?: { dag?: string; typeId?: string }
+  opts?: { dag?: string; totEnMetDag?: string; typeId?: string }
 ): StreepjeLeaderboardRegel[] {
   const dagenPerPersoon = new Map<string, Set<string>>();
   const perTypePerPersoon = new Map<string, Record<string, number>>();
 
   for (const s of ruw) {
-    if (opts?.dag !== undefined && streepjesDag(s.created_at) !== opts.dag) continue;
+    const dag = streepjesDag(s.created_at);
+    if (opts?.dag !== undefined && dag !== opts.dag) continue;
+    if (opts?.totEnMetDag !== undefined && dag > opts.totEnMetDag) continue;
     if (opts?.typeId !== undefined && s.streepje_type_id !== opts.typeId) continue;
 
     const dagen = dagenPerPersoon.get(s.streepje_persoon_id) ?? new Set<string>();
-    dagen.add(streepjesDag(s.created_at));
+    dagen.add(dag);
     dagenPerPersoon.set(s.streepje_persoon_id, dagen);
 
     const perType = perTypePerPersoon.get(s.streepje_persoon_id) ?? {};
@@ -155,22 +161,59 @@ export function berekenPersoonOverzicht(
   return { totaalPerType, perDag };
 }
 
+// Aantal streepjesdagen waarop deze persoon de meeste streepjes had van een
+// subset types (bv. alle "bier"-achtige soorten samen) — elke dag heeft zijn
+// eigen winnaar(s), dus over het hele kamp heen kan iemand er meerdere
+// winnen. Gebruikt voor de "dagwinnaar"-badges op het profiel.
+export function berekenDagWinstTellingen(ruw: StreepjeRuw[], typeIds: string[]): Map<string, number> {
+  const perDagPerPersoon = new Map<string, Map<string, number>>();
+  for (const s of ruw) {
+    if (!typeIds.includes(s.streepje_type_id)) continue;
+    const dag = streepjesDag(s.created_at);
+    const perPersoon = perDagPerPersoon.get(dag) ?? new Map<string, number>();
+    perPersoon.set(s.streepje_persoon_id, (perPersoon.get(s.streepje_persoon_id) ?? 0) + 1);
+    perDagPerPersoon.set(dag, perPersoon);
+  }
+
+  const tellingen = new Map<string, number>();
+  for (const perPersoon of perDagPerPersoon.values()) {
+    const dagMax = Math.max(...perPersoon.values());
+    if (dagMax === 0) continue;
+    for (const [persoonId, aantal] of perPersoon) {
+      if (aantal === dagMax) tellingen.set(persoonId, (tellingen.get(persoonId) ?? 0) + 1);
+    }
+  }
+  return tellingen;
+}
+
 export type StreepjeTruiKleur = "geel" | "groen" | "bolletjes" | "wit";
 export type StreepjeTruiTellingen = Record<StreepjeTruiKleur, number>;
+export const TRUI_KLEUREN: StreepjeTruiKleur[] = ["geel", "groen", "bolletjes", "wit"];
+
+// `brondag` = de dag wiens eindstand deze trui bepaalde (dag vóór `dag`) —
+// nodig om vanaf een trui-dag door te linken naar de tótale stand die 'm
+// effectief opleverde, i.p.v. naar de stand aan het eind van `dag` zelf (die
+// kan intussen alweer veranderd zijn, want elke dag is een nieuwe etappe).
+type TruiDagLeiders = { dag: string; brondag: string; leiders: Record<StreepjeTruiKleur, string[]> };
 
 // Bepaalt per streepjesdag wie welke trui "droeg" — zoals in de Tour de
-// France leidt na elke dag niet wie die dag het meest had, maar wie op dat
-// moment vooraan staat in het cumulatieve klassement (aflopend bijgehouden,
-// dag per dag). Geel = algemeen klassement (gewogen totaal), groen/bolletjes
-// = klassement voor één typegroep (resp. bier- en sterke-achtige soorten,
-// ongewogen, net als de per-type tellingen), wit = hetzelfde als geel maar
-// enkel onder personen met de leiding-vlag. Bij een gelijke stand op een dag
-// krijgen alle gelijkstaanden die dag mee, net als de dagwinnaar-badges.
-export function berekenTruiDagen(
+// France draag je een dag de trui van de eindstand van de vorige dag (de
+// "finish" is 8u 's ochtends, exact het begin van de volgende streepjesdag),
+// niet van je eigen streepjes die dag zelf. Wie vandaag geel draagt, had dus
+// gisteren aan het einde van de dag het hoogste totaal — de eerste dag met
+// streepjes heeft nog geen truidrager, net zoals er voor de start van rit 1
+// nog geen geletruidrager is. Geel = algemeen klassement (gewogen totaal),
+// groen/bolletjes = klassement voor één typegroep (resp. bier- en
+// sterke-achtige soorten, ongewogen, net als de per-type tellingen), wit =
+// hetzelfde als geel maar enkel onder personen met de leiding-vlag. Bij een
+// gelijke stand krijgen alle gelijkstaanden mee, net als de
+// dagwinnaar-badges. Basis voor zowel de tellingen (berekenTruiDagen) als de
+// exacte datums per persoon (berekenTruiDagenVoorPersoon).
+function berekenTruiDagLeiders(
   ruw: StreepjeRuw[],
   personen: StreepjePersoon[],
   types: StreepjeType[]
-): Map<string, StreepjeTruiTellingen> {
+): TruiDagLeiders[] {
   const groenTypeIds = new Set(types.filter((t) => typeIcon(t.naam) === BierIcon).map((t) => t.id));
   const bolletjesTypeIds = new Set(types.filter((t) => typeIcon(t.naam) === SterkeIcon).map((t) => t.id));
   const leidingIds = new Set(personen.filter((p) => p.leiding).map((p) => p.id));
@@ -185,8 +228,6 @@ export function berekenTruiDagen(
   const dagen = [...ruwPerDag.keys()].sort((a, b) => a.localeCompare(b));
 
   const cumulatiefPerType = new Map<string, Record<string, number>>();
-  const tellingen = new Map<string, StreepjeTruiTellingen>();
-  for (const p of personen) tellingen.set(p.id, { geel: 0, groen: 0, bolletjes: 0, wit: 0 });
 
   function somTypes(perType: Record<string, number>, typeIds: Set<string>): number {
     let som = 0;
@@ -196,35 +237,91 @@ export function berekenTruiDagen(
 
   function leiders(scoor: (perType: Record<string, number>) => number, alleen?: Set<string>): string[] {
     let besteScore = 0;
-    let leiders: string[] = [];
+    let uitslag: string[] = [];
     for (const [persoonId, perType] of cumulatiefPerType) {
       if (alleen && !alleen.has(persoonId)) continue;
       const score = scoor(perType);
       if (score <= 0) continue;
       if (score > besteScore) {
         besteScore = score;
-        leiders = [persoonId];
+        uitslag = [persoonId];
       } else if (score === besteScore) {
-        leiders.push(persoonId);
+        uitslag.push(persoonId);
       }
     }
-    return leiders;
+    return uitslag;
   }
 
-  for (const dag of dagen) {
-    for (const s of ruwPerDag.get(dag)!) {
+  const resultaat: TruiDagLeiders[] = [];
+
+  for (let i = 0; i < dagen.length; i++) {
+    // Trui van vandaag = eindstand van gisteren, dus evalueren vóórdat de
+    // streepjes van vandaag zelf worden toegevoegd aan het cumulatief.
+    if (i > 0) {
+      resultaat.push({
+        dag: dagen[i],
+        brondag: dagen[i - 1],
+        leiders: {
+          geel: leiders((perType) => gewogenTotaal(perType, types)),
+          groen: leiders((perType) => somTypes(perType, groenTypeIds)),
+          bolletjes: leiders((perType) => somTypes(perType, bolletjesTypeIds)),
+          wit: leiders((perType) => gewogenTotaal(perType, types), leidingIds),
+        },
+      });
+    }
+
+    for (const s of ruwPerDag.get(dagen[i])!) {
       const perType = cumulatiefPerType.get(s.streepje_persoon_id) ?? {};
       perType[s.streepje_type_id] = (perType[s.streepje_type_id] ?? 0) + 1;
       cumulatiefPerType.set(s.streepje_persoon_id, perType);
     }
+  }
 
-    for (const id of leiders((perType) => gewogenTotaal(perType, types))) tellingen.get(id)!.geel++;
-    for (const id of leiders((perType) => somTypes(perType, groenTypeIds))) tellingen.get(id)!.groen++;
-    for (const id of leiders((perType) => somTypes(perType, bolletjesTypeIds))) tellingen.get(id)!.bolletjes++;
-    for (const id of leiders((perType) => gewogenTotaal(perType, types), leidingIds)) tellingen.get(id)!.wit++;
+  return resultaat;
+}
+
+export function berekenTruiDagen(
+  ruw: StreepjeRuw[],
+  personen: StreepjePersoon[],
+  types: StreepjeType[]
+): Map<string, StreepjeTruiTellingen> {
+  const tellingen = new Map<string, StreepjeTruiTellingen>();
+  for (const p of personen) tellingen.set(p.id, { geel: 0, groen: 0, bolletjes: 0, wit: 0 });
+
+  for (const { leiders } of berekenTruiDagLeiders(ruw, personen, types)) {
+    for (const kleur of TRUI_KLEUREN) {
+      for (const id of leiders[kleur]) tellingen.get(id)![kleur]++;
+    }
   }
 
   return tellingen;
+}
+
+// `dag` = de dag waarop je de trui droeg, `brondag` = de dag waarvan de
+// tótale stand (t/m die dag) die trui opleverde — dat is de dag om naar door
+// te linken, niet `dag` zelf (op `dag` zelf kan de stand alweer gewijzigd
+// zijn, want dat is een nieuwe etappe).
+export type StreepjeTruiDag = { dag: string; brondag: string };
+export type StreepjeTruiDagenPerKleur = Record<StreepjeTruiKleur, StreepjeTruiDag[]>;
+
+// Geeft de exacte streepjesdagen terug waarop deze persoon elke trui droeg
+// (i.p.v. enkel het aantal), meest recente eerst — zodat je op het profiel
+// kan tonen wannéér je een trui gewonnen hebt, met een link naar de tótale
+// stand die 'm effectief opleverde.
+export function berekenTruiDagenVoorPersoon(
+  ruw: StreepjeRuw[],
+  personen: StreepjePersoon[],
+  types: StreepjeType[],
+  persoonId: string
+): StreepjeTruiDagenPerKleur {
+  const resultaat: StreepjeTruiDagenPerKleur = { geel: [], groen: [], bolletjes: [], wit: [] };
+  for (const { dag, brondag, leiders } of berekenTruiDagLeiders(ruw, personen, types)) {
+    for (const kleur of TRUI_KLEUREN) {
+      if (leiders[kleur].includes(persoonId)) resultaat[kleur].push({ dag, brondag });
+    }
+  }
+  for (const kleur of TRUI_KLEUREN) resultaat[kleur].sort((a, b) => b.dag.localeCompare(a.dag));
+  return resultaat;
 }
 
 export type StreepjeTruiRegel = { persoon: StreepjePersoon; truien: StreepjeTruiTellingen };
