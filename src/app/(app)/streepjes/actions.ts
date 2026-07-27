@@ -115,22 +115,27 @@ export type ShussPotjeSpeler = { streepjePersoonId: string; resultaat: "gewonnen
 // Eén shuss-potje in één keer vastleggen voor alle deelnemers, i.p.v. voor
 // elke speler apart naar zijn/haar profiel te moeten en daar los op +1
 // gewonnen/verloren te klikken.
-export async function voegShussPotjeToe(spelers: ShussPotjeSpeler[]) {
+export async function voegShussPotjeToe(spelers: ShussPotjeSpeler[]): Promise<StreepjeActieResultaat> {
   const kamp = await getActiefKamp();
-  if (!kamp) return;
-  if (spelers.length === 0) return;
+  if (!kamp) return { ok: false, error: "Geen actief kamp gevonden." };
+  if (spelers.length === 0) return { ok: false, error: "Geen spelers gekozen." };
 
   const supabase = await createClient();
-  await supabase.from("shuss_gebeurtenis").insert(
+  const { error } = await supabase.from("shuss_gebeurtenis").insert(
     spelers.map((s) => ({
       kamp_id: kamp.id,
       streepje_persoon_id: s.streepjePersoonId,
       soort: s.resultaat,
     }))
   );
+  if (error) {
+    console.error("voegShussPotjeToe", error);
+    return { ok: false, error: "Kon shuss-potje niet opslaan, probeer opnieuw." };
+  }
 
   for (const s of spelers) revalidatePath(`/streepjes/${s.streepjePersoonId}`);
   revalidatePath("/streepjes/leaderboard");
+  return { ok: true };
 }
 
 export async function addShussGebeurtenis(formData: FormData) {
