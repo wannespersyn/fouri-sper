@@ -9,6 +9,7 @@ import {
 } from "@/app/(app)/streepjes/actions";
 import {
   berekenPersoonOverzicht,
+  berekenTruiDagen,
   gewogenTotaal,
   typeIcon,
   type StreepjePersoon,
@@ -17,7 +18,7 @@ import {
 } from "@/lib/streepjes-shared";
 import { berekenShussTellingen, shussWinrate, type ShussGebeurtenis, type ShussSoort } from "@/lib/shuss-shared";
 import { formatDatumLang } from "@/lib/date";
-import { LedenIcon, PencilIcon, MinusIcon, PlusIcon } from "@/components/icons";
+import { LedenIcon, PencilIcon, MinusIcon, PlusIcon, TruiIcon, TruiBolletjesIcon } from "@/components/icons";
 
 const SHUSS_RIJEN: { soort: ShussSoort; label: string }[] = [
   { soort: "gewonnen", label: "Gewonnen" },
@@ -27,11 +28,13 @@ const SHUSS_RIJEN: { soort: ShussSoort; label: string }[] = [
 
 export function PersoonDetailClient({
   persoon,
+  personen,
   types,
   ruw,
   shussGebeurtenissen,
 }: Readonly<{
   persoon: StreepjePersoon;
+  personen: StreepjePersoon[];
   types: StreepjeType[];
   ruw: StreepjeRuw[];
   shussGebeurtenissen: ShussGebeurtenis[];
@@ -42,6 +45,13 @@ export function PersoonDetailClient({
   const totaal = gewogenTotaal(overzicht.totaalPerType, types);
   const shussTellingen = berekenShussTellingen(shussGebeurtenissen, persoon.id);
   const winrate = shussWinrate(shussTellingen);
+  const truien = berekenTruiDagen(ruw, personen, types).get(persoon.id) ?? {
+    geel: 0,
+    groen: 0,
+    bolletjes: 0,
+    wit: 0,
+  };
+  const heeftTrui = truien.geel > 0 || truien.groen > 0 || truien.bolletjes > 0 || truien.wit > 0;
 
   return (
     <div className="mx-auto flex max-w-205 flex-col gap-4">
@@ -193,6 +203,52 @@ export function PersoonDetailClient({
           })}
           <span className="ml-auto text-lg font-extrabold text-[#25322b]">Totaal: {totaal}</span>
         </div>
+      </div>
+
+      <div className="rounded-[22px] border border-card-border bg-card p-5">
+        <h2 className="text-sm font-extrabold uppercase tracking-wide text-[#8a8172]">Truien</h2>
+        {heeftTrui ? (
+          <div className="mt-3 flex flex-wrap gap-2">
+            {truien.geel > 0 && (
+              <span
+                title="Gele trui — algemeen klassement"
+                className="flex items-center gap-1.5 rounded-full bg-[#fef3c7] px-3 py-1.5 text-sm font-extrabold text-[#92610a]"
+              >
+                <TruiIcon width={16} height={16} />
+                {truien.geel}
+              </span>
+            )}
+            {truien.groen > 0 && (
+              <span
+                title="Groene trui — pintjesklassement"
+                className="flex items-center gap-1.5 rounded-full bg-[#dcf3e6] px-3 py-1.5 text-sm font-extrabold text-[#1f6b43]"
+              >
+                <TruiIcon width={16} height={16} />
+                {truien.groen}
+              </span>
+            )}
+            {truien.bolletjes > 0 && (
+              <span
+                title="Bollentrui — sterkeklassement"
+                className="flex items-center gap-1.5 rounded-full bg-[#fee2e2] px-3 py-1.5 text-sm font-extrabold text-[#b91c1c]"
+              >
+                <TruiBolletjesIcon width={16} height={16} />
+                {truien.bolletjes}
+              </span>
+            )}
+            {truien.wit > 0 && (
+              <span
+                title="Witte trui — klassement onder leiding"
+                className="flex items-center gap-1.5 rounded-full bg-[#f0ede2] px-3 py-1.5 text-sm font-extrabold text-[#25322b]"
+              >
+                <TruiIcon width={16} height={16} />
+                {truien.wit}
+              </span>
+            )}
+          </div>
+        ) : (
+          <p className="mt-3 text-sm text-[#6f7d72]">Nog geen enkele trui gedragen.</p>
+        )}
       </div>
 
       <div className="rounded-[22px] border border-card-border bg-card p-5">

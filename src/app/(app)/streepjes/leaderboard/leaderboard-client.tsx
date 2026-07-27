@@ -6,16 +6,32 @@ import Image from "next/image";
 import {
   berekenLeaderboard,
   huidigeStreepjesDag,
+  rangschikTruiTellingen,
   typeIcon,
   type StreepjePersoon,
   type StreepjeRuw,
+  type StreepjeTruiKleur,
   type StreepjeType,
 } from "@/lib/streepjes-shared";
 import { berekenShussLeaderboard, type ShussGebeurtenis } from "@/lib/shuss-shared";
 import { formatDatumLang, voegDagenToe } from "@/lib/date";
-import { LedenIcon } from "@/components/icons";
+import { LedenIcon, TruiIcon, TruiBolletjesIcon } from "@/components/icons";
 
 const MEDAILLE_KLEUREN = ["#c8a13a", "#9aa0a6", "#a8703f"];
+
+// Kleur/label/icoon per trui-classificatie — gebruikt voor zowel de
+// filterpills als de badges per rij, zodat die twee niet uit de pas kunnen
+// lopen.
+const TRUI_INFO: Record<
+  StreepjeTruiKleur,
+  { label: string; bg: string; tekst: string; icon: typeof TruiIcon }
+> = {
+  geel: { label: "Geel", bg: "#fef3c7", tekst: "#92610a", icon: TruiIcon },
+  groen: { label: "Groen", bg: "#dcf3e6", tekst: "#1f6b43", icon: TruiIcon },
+  bolletjes: { label: "Bolletjes", bg: "#fee2e2", tekst: "#b91c1c", icon: TruiBolletjesIcon },
+  wit: { label: "Wit", bg: "#f0ede2", tekst: "#25322b", icon: TruiIcon },
+};
+const TRUI_KLEUREN: StreepjeTruiKleur[] = ["geel", "groen", "bolletjes", "wit"];
 
 export function LeaderboardClient({
   personen,
@@ -28,17 +44,20 @@ export function LeaderboardClient({
   ruw: StreepjeRuw[];
   shussGebeurtenissen: ShussGebeurtenis[];
 }>) {
-  const [weergave, setWeergave] = useState<"streepjes" | "shuss">("streepjes");
+  const [weergave, setWeergave] = useState<"streepjes" | "shuss" | "truien">("streepjes");
   const [modus, setModus] = useState<"totaal" | "dag">("dag");
   const [dag, setDag] = useState(() => huidigeStreepjesDag());
   const [typeId, setTypeId] = useState<string | null>(null);
   const [shussModus, setShussModus] = useState<"winrate" | "adjes">("winrate");
+  const [truiKleur, setTruiKleur] = useState<StreepjeTruiKleur | null>(null);
 
   const ranglijst = berekenLeaderboard(ruw, personen, types, {
     dag: modus === "dag" ? dag : undefined,
     typeId: typeId ?? undefined,
   });
   const shussRanglijst = berekenShussLeaderboard(shussGebeurtenissen, personen, shussModus);
+  const truiRanglijst = rangschikTruiTellingen(ruw, personen, types, { kleur: truiKleur ?? undefined });
+  const truiKolomInfo = truiKleur ? TRUI_INFO[truiKleur] : null;
 
   return (
     <div className="flex flex-1 flex-col overflow-hidden p-3.5 sm:p-5.5">
@@ -54,6 +73,15 @@ export function LeaderboardClient({
         </button>
         <button
           type="button"
+          onClick={() => setWeergave("truien")}
+          className={`flex-1 rounded-xl px-4 py-2 text-sm font-extrabold transition ${
+            weergave === "truien" ? "bg-[#25322b] text-white" : "border border-card-border bg-card text-[#4f5b52]"
+          }`}
+        >
+          Truien
+        </button>
+        <button
+          type="button"
           onClick={() => setWeergave("shuss")}
           className={`flex-1 rounded-xl px-4 py-2 text-sm font-extrabold transition ${
             weergave === "shuss" ? "bg-[#25322b] text-white" : "border border-card-border bg-card text-[#4f5b52]"
@@ -63,7 +91,7 @@ export function LeaderboardClient({
         </button>
       </div>
 
-      {weergave === "shuss" ? (
+      {weergave === "shuss" && (
         <>
           <div className="mt-2 flex flex-none gap-2">
             <button
@@ -85,6 +113,12 @@ export function LeaderboardClient({
               Adjes
             </button>
           </div>
+
+          {shussModus === "winrate" && (
+            <p className="mt-1.5 text-xs text-[#8a8172]">
+              Gerangschikt met correctie voor aantal partijen — 1 gewonnen potje op 1 telt lichter dan 9 op 10.
+            </p>
+          )}
 
           <div className="mt-3 flex-1 overflow-auto">
             {shussRanglijst.length === 0 ? (
@@ -132,7 +166,9 @@ export function LeaderboardClient({
             )}
           </div>
         </>
-      ) : (
+      )}
+
+      {weergave === "streepjes" && (
         <>
           <div className="mt-2 flex flex-none gap-2">
             <button
@@ -270,6 +306,106 @@ export function LeaderboardClient({
                         </div>
                       )}
                     </div>
+                  </Link>
+                ))}
+              </div>
+            )}
+          </div>
+        </>
+      )}
+
+      {weergave === "truien" && (
+        <>
+          <div className="mt-2 flex flex-none flex-wrap gap-1.5">
+            <button
+              type="button"
+              onClick={() => setTruiKleur(null)}
+              className={`rounded-full px-3.5 py-1.5 text-xs font-extrabold transition ${
+                truiKleur === null ? "bg-[#25322b] text-white" : "border border-card-border bg-card text-[#4f5b52]"
+              }`}
+            >
+              Alle
+            </button>
+            {TRUI_KLEUREN.map((kleur) => {
+              const info = TRUI_INFO[kleur];
+              const Icon = info.icon;
+              const actief = truiKleur === kleur;
+              return (
+                <button
+                  key={kleur}
+                  type="button"
+                  onClick={() => setTruiKleur(kleur)}
+                  className="flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-extrabold transition"
+                  style={actief ? { background: info.bg, color: info.tekst } : { background: "#c7c2b4", color: "#fff" }}
+                >
+                  <Icon width={13} height={13} />
+                  {info.label}
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="mt-3 flex-1 overflow-auto">
+            {truiRanglijst.length === 0 ? (
+              <p className="mt-6 text-center text-sm text-[#6f7d72]">
+                {truiKleur ? `Nog niemand droeg de ${TRUI_INFO[truiKleur].label.toLowerCase()}e trui.` : "Nog geen enkele trui uitgereikt."}
+              </p>
+            ) : (
+              <div className="flex flex-col gap-2">
+                {truiRanglijst.map((r, i) => (
+                  <Link
+                    key={r.persoon.id}
+                    href={`/streepjes/${r.persoon.id}`}
+                    className="flex items-center gap-3 rounded-2xl border border-card-border bg-card p-3 transition active:bg-[#f6f3ea]"
+                  >
+                    <span
+                      className="flex size-7 flex-none items-center justify-center rounded-full text-sm font-extrabold text-white"
+                      style={{ background: MEDAILLE_KLEUREN[i] ?? "#c7c2b4" }}
+                    >
+                      {i + 1}
+                    </span>
+                    {r.persoon.fotoUrl ? (
+                      <Image
+                        src={r.persoon.fotoUrl}
+                        alt=""
+                        width={36}
+                        height={36}
+                        className="size-9 flex-none rounded-full object-cover"
+                        unoptimized
+                      />
+                    ) : (
+                      <span className="flex size-9 flex-none items-center justify-center rounded-full bg-[#f0ede2] text-[#8a8172]">
+                        <LedenIcon width={17} height={17} />
+                      </span>
+                    )}
+                    <div className="min-w-0 flex-1 truncate text-base font-bold">{r.persoon.naam}</div>
+                    {truiKleur && truiKolomInfo ? (
+                      <span
+                        className="flex flex-none items-center gap-1.5 text-lg font-extrabold"
+                        style={{ color: truiKolomInfo.tekst }}
+                      >
+                        <truiKolomInfo.icon width={18} height={18} />
+                        {r.truien[truiKleur]}
+                      </span>
+                    ) : (
+                      <div className="flex flex-none flex-wrap justify-end gap-1">
+                        {TRUI_KLEUREN.filter((kleur) => r.truien[kleur] > 0).map((kleur) => {
+                          const info = TRUI_INFO[kleur];
+                          const Icon = info.icon;
+                          return (
+                            <span
+                              key={kleur}
+                              title={`${info.label} — ${r.truien[kleur]} dag${r.truien[kleur] === 1 ? "" : "en"}`}
+                              className="flex items-center gap-1 rounded-full px-2 py-1 text-xs font-extrabold"
+                              style={{ background: info.bg, color: info.tekst }}
+                            >
+                              <Icon width={13} height={13} />
+                              {r.truien[kleur]}
+                            </span>
+                          );
+                        })}
+                      </div>
+                    )}
                   </Link>
                 ))}
               </div>

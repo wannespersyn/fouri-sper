@@ -43,9 +43,26 @@ export function shussWinrate(tellingen: ShussTellingen): number | null {
   return partijen > 0 ? tellingen.gewonnen / partijen : null;
 }
 
-// Rangschikt personen op winrate (met minstens 1 partij) of op totaal aantal
-// adjes — "vaakst wint" en "beste schutter" zijn niet noodzakelijk dezelfde
-// mensen.
+const WILSON_Z = 1.96; // 95%-betrouwbaarheidsinterval
+
+// Wilson score (ondergrens) i.p.v. de kale winrate om op te rangschikken: 1/1
+// gewonnen (100%) mag iemand met 18/20 (90%) niet voorbijsteken, want met 1
+// partij weet je nog niets. Hoe meer partijen, hoe dichter deze score bij de
+// werkelijke winrate kruipt; met weinig partijen duwt de onzekerheid ze naar
+// beneden. Het getoonde percentage blijft gewoon de kale winrate — enkel de
+// volgorde houdt rekening met het aantal partijen.
+function wilsonScore(gewonnen: number, partijen: number): number {
+  if (partijen === 0) return 0;
+  const p = gewonnen / partijen;
+  const z2 = WILSON_Z * WILSON_Z;
+  const teller = p + z2 / (2 * partijen) - WILSON_Z * Math.sqrt((p * (1 - p) + z2 / (4 * partijen)) / partijen);
+  const noemer = 1 + z2 / partijen;
+  return teller / noemer;
+}
+
+// Rangschikt personen op winrate (met minstens 1 partij, gecorrigeerd voor
+// het aantal partijen via wilsonScore) of op totaal aantal adjes — "vaakst
+// wint" en "beste schutter" zijn niet noodzakelijk dezelfde mensen.
 export function berekenShussLeaderboard(
   gebeurtenissen: ShussGebeurtenis[],
   personen: StreepjePersoon[],
@@ -61,7 +78,10 @@ export function berekenShussLeaderboard(
       if (sorteerOp === "adjes") {
         return b.tellingen.adjes - a.tellingen.adjes || a.persoon.naam.localeCompare(b.persoon.naam);
       }
+      const scoreA = wilsonScore(a.tellingen.gewonnen, a.tellingen.gewonnen + a.tellingen.verloren);
+      const scoreB = wilsonScore(b.tellingen.gewonnen, b.tellingen.gewonnen + b.tellingen.verloren);
       return (
+        scoreB - scoreA ||
         (b.winrate ?? 0) - (a.winrate ?? 0) ||
         b.tellingen.gewonnen - a.tellingen.gewonnen ||
         a.persoon.naam.localeCompare(b.persoon.naam)

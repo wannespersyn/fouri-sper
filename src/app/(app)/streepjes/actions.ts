@@ -240,6 +240,24 @@ export async function reageerOpShussOproep(
   return { ok: true, aantalJa: count ?? 0 };
 }
 
+// "Leiding" is een gedeelde vlag op de rij zelf (net als naam/bio), niet
+// per-gebruiker zoals favoriet — het is een objectief gegeven over de
+// persoon (is dit een leider of niet), geen persoonlijke voorkeur.
+export async function toggleStreepjePersoonLeiding(formData: FormData) {
+  const kamp = await getActiefKamp();
+  if (!kamp) return;
+
+  const id = formString(formData, "id");
+  const huidig = formString(formData, "huidig") === "true";
+  if (!id) return;
+
+  const supabase = await createClient();
+  await supabase.from("streepje_persoon").update({ leiding: !huidig }).eq("id", id).eq("kamp_id", kamp.id);
+
+  revalidatePath("/streepjes");
+  revalidatePath(`/streepjes/${id}`);
+}
+
 export async function toggleStreepjePersoonFavoriet(formData: FormData) {
   const id = formString(formData, "id");
   const huidig = formString(formData, "huidig") === "true";

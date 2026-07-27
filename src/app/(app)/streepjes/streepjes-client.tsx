@@ -6,6 +6,7 @@ import {
   addStreepjePersoon,
   removeStreepje,
   toggleStreepjePersoonFavoriet,
+  toggleStreepjePersoonLeiding,
 } from "@/app/(app)/streepjes/actions";
 import {
   zoekPersonen,
@@ -18,7 +19,16 @@ import {
   type StreepjeType,
 } from "@/lib/streepjes-shared";
 import { formatDatumLang } from "@/lib/date";
-import { StarIcon, CheckIcon, PlusIcon, MinusIcon, LedenIcon, BierIcon, SterkeIcon } from "@/components/icons";
+import {
+  StarIcon,
+  CheckIcon,
+  PlusIcon,
+  MinusIcon,
+  LedenIcon,
+  BierIcon,
+  SterkeIcon,
+  LeidingIcon,
+} from "@/components/icons";
 import Link from "next/link";
 import Image from "next/image";
 
@@ -147,6 +157,19 @@ export function StreepjesClient({
               className="flex size-8 flex-none items-center justify-center rounded-full text-[#c8a13a]"
             >
               <StarIcon width={19} height={19} fill={p.favoriet ? "currentColor" : "none"} />
+            </button>
+          </form>
+
+          <form action={toggleStreepjePersoonLeiding} onClick={(e) => e.stopPropagation()}>
+            <input type="hidden" name="id" value={p.id} />
+            <input type="hidden" name="huidig" value={String(p.leiding)} />
+            <button
+              type="submit"
+              aria-label={p.leiding ? "Leiding-status verwijderen" : "Als leiding markeren"}
+              title={p.leiding ? "Leiding" : "Markeer als leiding"}
+              className="flex size-8 flex-none items-center justify-center rounded-full text-[#2f6d4f]"
+            >
+              <LeidingIcon width={17} height={17} fill={p.leiding ? "currentColor" : "none"} />
             </button>
           </form>
 

@@ -7,7 +7,7 @@ export async function getStreepjesPersonen(kampId: string): Promise<StreepjePers
   const [{ data: personen }, { data: userData }] = await Promise.all([
     supabase
       .from("streepje_persoon")
-      .select("id, naam, bio, foto_url")
+      .select("id, naam, bio, foto_url, leiding")
       .eq("kamp_id", kampId)
       .order("naam", { ascending: true }),
     supabase.auth.getUser(),
@@ -29,6 +29,7 @@ export async function getStreepjesPersonen(kampId: string): Promise<StreepjePers
     bio: p.bio,
     fotoUrl: p.foto_url,
     favoriet: favorietIds.has(p.id),
+    leiding: p.leiding,
   }));
 }
 
@@ -36,7 +37,7 @@ export async function getStreepjePersoon(kampId: string, persoonId: string): Pro
   const supabase = await createClient();
   const { data: p } = await supabase
     .from("streepje_persoon")
-    .select("id, naam, bio, foto_url")
+    .select("id, naam, bio, foto_url, leiding")
     .eq("kamp_id", kampId)
     .eq("id", persoonId)
     .maybeSingle();
@@ -56,7 +57,7 @@ export async function getStreepjePersoon(kampId: string, persoonId: string): Pro
     favoriet = !!fav;
   }
 
-  return { id: p.id, naam: p.naam, bio: p.bio, fotoUrl: p.foto_url, favoriet };
+  return { id: p.id, naam: p.naam, bio: p.bio, fotoUrl: p.foto_url, favoriet, leiding: p.leiding };
 }
 
 // Laatste shuss-oproep binnen het "actieve" venster, met de ja-teller en de

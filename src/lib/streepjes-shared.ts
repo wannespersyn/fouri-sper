@@ -17,6 +17,7 @@ export type StreepjePersoon = {
   id: string;
   naam: string;
   favoriet: boolean;
+  leiding: boolean;
   bio: string | null;
   fotoUrl: string | null;
 };
@@ -152,6 +153,118 @@ export function berekenPersoonOverzicht(
     .sort((a, b) => b.dag.localeCompare(a.dag));
 
   return { totaalPerType, perDag };
+}
+
+export type StreepjeTruiKleur = "geel" | "groen" | "bolletjes" | "wit";
+export type StreepjeTruiTellingen = Record<StreepjeTruiKleur, number>;
+
+// Bepaalt per streepjesdag wie welke trui "droeg" — zoals in de Tour de
+// France leidt na elke dag niet wie die dag het meest had, maar wie op dat
+// moment vooraan staat in het cumulatieve klassement (aflopend bijgehouden,
+// dag per dag). Geel = algemeen klassement (gewogen totaal), groen/bolletjes
+// = klassement voor één typegroep (resp. bier- en sterke-achtige soorten,
+// ongewogen, net als de per-type tellingen), wit = hetzelfde als geel maar
+// enkel onder personen met de leiding-vlag. Bij een gelijke stand op een dag
+// krijgen alle gelijkstaanden die dag mee, net als de dagwinnaar-badges.
+export function berekenTruiDagen(
+  ruw: StreepjeRuw[],
+  personen: StreepjePersoon[],
+  types: StreepjeType[]
+): Map<string, StreepjeTruiTellingen> {
+  const groenTypeIds = new Set(types.filter((t) => typeIcon(t.naam) === BierIcon).map((t) => t.id));
+  const bolletjesTypeIds = new Set(types.filter((t) => typeIcon(t.naam) === SterkeIcon).map((t) => t.id));
+  const leidingIds = new Set(personen.filter((p) => p.leiding).map((p) => p.id));
+
+  const ruwPerDag = new Map<string, StreepjeRuw[]>();
+  for (const s of ruw) {
+    const dag = streepjesDag(s.created_at);
+    const lijst = ruwPerDag.get(dag) ?? [];
+    lijst.push(s);
+    ruwPerDag.set(dag, lijst);
+  }
+  const dagen = [...ruwPerDag.keys()].sort((a, b) => a.localeCompare(b));
+
+  const cumulatiefPerType = new Map<string, Record<string, number>>();
+  const tellingen = new Map<string, StreepjeTruiTellingen>();
+  for (const p of personen) tellingen.set(p.id, { geel: 0, groen: 0, bolletjes: 0, wit: 0 });
+
+  function somTypes(perType: Record<string, number>, typeIds: Set<string>): number {
+    let som = 0;
+    for (const id of typeIds) som += perType[id] ?? 0;
+    return som;
+  }
+
+  function leiders(scoor: (perType: Record<string, number>) => number, alleen?: Set<string>): string[] {
+    let besteScore = 0;
+    let leiders: string[] = [];
+    for (const [persoonId, perType] of cumulatiefPerType) {
+      if (alleen && !alleen.has(persoonId)) continue;
+      const score = scoor(perType);
+      if (score <= 0) continue;
+      if (score > besteScore) {
+        besteScore = score;
+        leiders = [persoonId];
+      } else if (score === besteScore) {
+        leiders.push(persoonId);
+      }
+    }
+    return leiders;
+  }
+
+  for (const dag of dagen) {
+    for (const s of ruwPerDag.get(dag)!) {
+      const perType = cumulatiefPerType.get(s.streepje_persoon_id) ?? {};
+      perType[s.streepje_type_id] = (perType[s.streepje_type_id] ?? 0) + 1;
+      cumulatiefPerType.set(s.streepje_persoon_id, perType);
+    }
+
+    for (const id of leiders((perType) => gewogenTotaal(perType, types))) tellingen.get(id)!.geel++;
+    for (const id of leiders((perType) => somTypes(perType, groenTypeIds))) tellingen.get(id)!.groen++;
+    for (const id of leiders((perType) => somTypes(perType, bolletjesTypeIds))) tellingen.get(id)!.bolletjes++;
+    for (const id of leiders((perType) => gewogenTotaal(perType, types), leidingIds)) tellingen.get(id)!.wit++;
+  }
+
+  return tellingen;
+}
+
+export type StreepjeTruiRegel = { persoon: StreepjePersoon; truien: StreepjeTruiTellingen };
+
+// Rangschikt iedereen die minstens één trui heeft gedragen, voor het
+// truien-overzicht op het leaderboard — geel weegt het zwaarst (de
+// belangrijkste classificatie), de andere tellingen dienen enkel als
+// tie-breaker, net zoals in de Tour de France het algemeen klassement voorop
+// staat. Met `opts.kleur` beperkt tot wie die specifieke trui droeg, gesorteerd
+// op dat klassement alleen — zelfde filter-op-één-kolom idee als typeId bij
+// berekenLeaderboard.
+export function rangschikTruiTellingen(
+  ruw: StreepjeRuw[],
+  personen: StreepjePersoon[],
+  types: StreepjeType[],
+  opts?: { kleur?: StreepjeTruiKleur }
+): StreepjeTruiRegel[] {
+  const tellingen = berekenTruiDagen(ruw, personen, types);
+  const regels = personen.map((persoon) => ({
+    persoon,
+    truien: tellingen.get(persoon.id) ?? { geel: 0, groen: 0, bolletjes: 0, wit: 0 },
+  }));
+
+  if (opts?.kleur) {
+    const kleur = opts.kleur;
+    return regels
+      .filter((r) => r.truien[kleur] > 0)
+      .sort((a, b) => b.truien[kleur] - a.truien[kleur] || a.persoon.naam.localeCompare(b.persoon.naam));
+  }
+
+  return regels
+    .filter((r) => r.truien.geel > 0 || r.truien.groen > 0 || r.truien.bolletjes > 0 || r.truien.wit > 0)
+    .sort(
+      (a, b) =>
+        b.truien.geel - a.truien.geel ||
+        b.truien.groen - a.truien.groen ||
+        b.truien.bolletjes - a.truien.bolletjes ||
+        b.truien.wit - a.truien.wit ||
+        a.persoon.naam.localeCompare(b.persoon.naam)
+    );
 }
 
 function normaliseer(s: string): string {

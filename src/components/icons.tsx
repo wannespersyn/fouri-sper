@@ -184,6 +184,35 @@ export function BellIcon(props: SVGProps<SVGSVGElement>) {
   );
 }
 
+export function TruiIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <Svg {...props}>
+      <path d="M9 4L4 7l3 3v11h10V10l3-3-5-3-2 2h-4z" />
+    </Svg>
+  );
+}
+
+export function TruiBolletjesIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <Svg {...props}>
+      <path d="M9 4L4 7l3 3v11h10V10l3-3-5-3-2 2h-4z" />
+      <circle cx={10} cy={11} r={0.9} fill="currentColor" stroke="none" />
+      <circle cx={14} cy={11} r={0.9} fill="currentColor" stroke="none" />
+      <circle cx={12} cy={14.5} r={0.9} fill="currentColor" stroke="none" />
+      <circle cx={9.5} cy={18} r={0.9} fill="currentColor" stroke="none" />
+      <circle cx={14.5} cy={18} r={0.9} fill="currentColor" stroke="none" />
+    </Svg>
+  );
+}
+
+export function LeidingIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <Svg {...props}>
+      <path d="M12 3l7 3v6c0 5-3 8-7 9-4-1-7-4-7-9V6z" />
+    </Svg>
+  );
+}
+
 export function TrophyIcon(props: SVGProps<SVGSVGElement>) {
   return (
     <Svg {...props}>
