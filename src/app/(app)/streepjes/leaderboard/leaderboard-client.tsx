@@ -43,6 +43,7 @@ export function LeaderboardClient({
   const [typeId, setTypeId] = useState<string | null>(null);
   const [shussModus, setShussModus] = useState<"winrate" | "adjes">("winrate");
   const [truiKleur, setTruiKleur] = useState<StreepjeTruiKleur | null>(null);
+  const [prijzen, setPrijzen] = useState<Record<string, number>>({});
 
   const ranglijst = berekenLeaderboard(ruw, personen, types, {
     dag: modus === "dag" ? dag : undefined,
@@ -52,6 +53,41 @@ export function LeaderboardClient({
   const shussRanglijst = berekenShussLeaderboard(shussGebeurtenissen, personen, shussModus);
   const truiRanglijst = rangschikTruiTellingen(ruw, personen, types, { kleur: truiKleur ?? undefined });
   const truiKolomInfo = truiKleur ? TRUI_INFO[truiKleur] : null;
+
+  // Los van de dag/type-filters hierboven — de export is altijd het volledige
+  // kampoverzicht, alle soorten samen.
+  const exportRanglijst = berekenLeaderboard(ruw, personen, types);
+
+  // CSV i.p.v. een echt .xlsx-bestand: geen extra library nodig en het opent
+  // gewoon in Excel. `;` als scheidingsteken en `,` als decimaalteken, want
+  // Excel in BE/NL verwacht dat standaard i.p.v. de Engelse `,`/`.`-indeling.
+  function exporteerCsv() {
+    const scheidingsteken = ";";
+    const veld = (v: string) =>
+      v.includes(scheidingsteken) || v.includes('"') || v.includes("\n") ? `"${v.replaceAll('"', '""')}"` : v;
+    const bedrag = (n: number) => n.toFixed(2).replace(".", ",");
+
+    const header = ["Naam", ...types.flatMap((t) => [`${t.naam} (aantal)`, `${t.naam} (bedrag)`]), "Totaal bedrag"];
+    const rijen = exportRanglijst.map((r) => {
+      let totaalBedrag = 0;
+      const cellen = types.flatMap((t) => {
+        const aantal = r.perType[t.id] ?? 0;
+        const bedragType = aantal * (prijzen[t.id] ?? 0);
+        totaalBedrag += bedragType;
+        return [String(aantal), bedrag(bedragType)];
+      });
+      return [r.persoon.naam, ...cellen, bedrag(totaalBedrag)];
+    });
+
+    const csv = [header, ...rijen].map((rij) => rij.map(veld).join(scheidingsteken)).join("\r\n");
+    const blob = new Blob([`﻿${csv}`], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `streepjes-${huidigeStreepjesDag()}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
 
   return (
     <div className="flex flex-1 flex-col overflow-hidden p-3.5 sm:p-5.5">
@@ -239,6 +275,41 @@ export function LeaderboardClient({
               ›
             </button>
           </div>
+
+          {modus === "totaal" && types.length > 0 && (
+            <div className="mt-3 flex flex-none flex-col gap-2 rounded-xl border border-card-border bg-card px-3 py-2.5">
+              <span className="text-xs font-extrabold text-[#4f5b52]">Prijs per streepje</span>
+              <div className="flex flex-wrap gap-3">
+                {types.map((t) => (
+                  <label key={t.id} className="flex items-center gap-1.5 text-sm font-semibold text-[#4f5b52]">
+                    {t.naam}
+                    <span className="flex items-center gap-1 rounded-lg border border-card-border bg-[#faf8f2] px-2 py-1">
+                      <span>€</span>
+                      <input
+                        type="number"
+                        inputMode="decimal"
+                        min={0}
+                        step={0.1}
+                        value={prijzen[t.id] ?? ""}
+                        placeholder="0"
+                        onChange={(e) =>
+                          setPrijzen((p) => ({ ...p, [t.id]: e.target.value === "" ? 0 : Number(e.target.value) }))
+                        }
+                        className="w-14 bg-transparent text-sm font-bold outline-none"
+                      />
+                    </span>
+                  </label>
+                ))}
+              </div>
+              <button
+                type="button"
+                onClick={exporteerCsv}
+                className="mt-1 flex-none self-start rounded-xl bg-primary px-4 py-2 text-sm font-extrabold text-white transition active:scale-95"
+              >
+                Exporteer naar Excel
+              </button>
+            </div>
+          )}
 
           <div className="mt-3 flex-1 overflow-auto">
             {ranglijst.length === 0 ? (
