@@ -43,7 +43,9 @@ export function LeaderboardClient({
   const [typeId, setTypeId] = useState<string | null>(null);
   const [shussModus, setShussModus] = useState<"winrate" | "adjes">("winrate");
   const [truiKleur, setTruiKleur] = useState<StreepjeTruiKleur | null>(null);
-  const [prijzen, setPrijzen] = useState<Record<string, number>>({});
+  // Als tekst bijgehouden i.p.v. number — een number-input dwingt een punt af
+  // als decimaalteken, terwijl hier met een komma getypt wordt (nl-BE).
+  const [prijzen, setPrijzen] = useState<Record<string, string>>({});
 
   const ranglijst = berekenLeaderboard(ruw, personen, types, {
     dag: modus === "dag" ? dag : undefined,
@@ -57,6 +59,11 @@ export function LeaderboardClient({
   // Los van de dag/type-filters hierboven — de export is altijd het volledige
   // kampoverzicht, alle soorten samen.
   const exportRanglijst = berekenLeaderboard(ruw, personen, types);
+
+  function prijsGetal(typeId: string): number {
+    const n = Number((prijzen[typeId] ?? "").replace(",", "."));
+    return Number.isFinite(n) ? n : 0;
+  }
 
   // CSV i.p.v. een echt .xlsx-bestand: geen extra library nodig en het opent
   // gewoon in Excel. `;` als scheidingsteken en `,` als decimaalteken, want
@@ -72,7 +79,7 @@ export function LeaderboardClient({
       let totaalBedrag = 0;
       const cellen = types.flatMap((t) => {
         const aantal = r.perType[t.id] ?? 0;
-        const bedragType = aantal * (prijzen[t.id] ?? 0);
+        const bedragType = aantal * prijsGetal(t.id);
         totaalBedrag += bedragType;
         return [String(aantal), bedrag(bedragType)];
       });
@@ -286,15 +293,16 @@ export function LeaderboardClient({
                     <span className="flex items-center gap-1 rounded-lg border border-card-border bg-[#faf8f2] px-2 py-1">
                       <span>€</span>
                       <input
-                        type="number"
+                        type="text"
                         inputMode="decimal"
-                        min={0}
-                        step={0.1}
                         value={prijzen[t.id] ?? ""}
                         placeholder="0"
-                        onChange={(e) =>
-                          setPrijzen((p) => ({ ...p, [t.id]: e.target.value === "" ? 0 : Number(e.target.value) }))
-                        }
+                        onChange={(e) => {
+                          // Enkel cijfers en één komma of punt toelaten, allebei als
+                          // decimaalteken (typen gebeurt hier met een komma, nl-BE).
+                          const v = e.target.value.replace(/[^0-9.,]/g, "");
+                          setPrijzen((p) => ({ ...p, [t.id]: v }));
+                        }}
                         className="w-14 bg-transparent text-sm font-bold outline-none"
                       />
                     </span>
